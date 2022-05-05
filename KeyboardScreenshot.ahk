@@ -13,6 +13,16 @@ Menu, tray, add  ; Creates a separator line.
 Menu, tray, add, Reload  
 Menu, tray, add, Exit
 
+return
+
+Reload:
+	Reload
+return
+
+Exit:
+	ExitApp
+return
+
 /*
 #q::
 	reload
@@ -351,3 +361,4 @@ SetClipboardData(hBitmap)
 	DllCall("CloseClipboard")
 }
 ; ===== PRINTSCREEN : END SCRIPT ===========================================================================
+
