@@ -17,10 +17,10 @@ Your screenshot will be copied to the clipboard
 
 Hold down shift while moving the cursor to decrease the speed.
 
-## Requirement & Install
+## Requirements & Install
 
-- You have AHK/AHK_L --> use KeyboardMouser.ahk
-- You don't have AHK/AHK_L --> use KeyboardMouser.exe(32bit) or KeyboardMouser_64.exe(64bit)
+- You have AHK/AHK_L --> use KeyboardScreenshot.ahk
+- You don't have AHK/AHK_L --> use KeyboardScreenshot.exe from Releases
 
 ## Licence
 
