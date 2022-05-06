@@ -36,6 +36,8 @@ return
 		ToolTip, Keyboard screenshot cancelled
 		SetTimer, UpdatePreviewRectangle, Off
 		PreviewDestroy()
+		Sleep, 1000
+		ToolTip, 
 	} else {
 		interactiveMode := 1
 		state := 1
