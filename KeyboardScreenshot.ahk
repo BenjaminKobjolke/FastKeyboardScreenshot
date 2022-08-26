@@ -8,6 +8,10 @@ mouseSPeedSlow := 10
 interactiveMode := 0
 state := 0
 
+screenShotStartX := -1
+screenShotStartY := -1
+screenShotEndX := -1
+screenShotEndY := -1
 Menu, tray, NoStandard
 Menu, tray, add  ; Creates a separator line.
 Menu, tray, add, Reload  
@@ -29,15 +33,10 @@ return
 return
 */
 
-!+q::
+!+q::	
 	if(interactiveMode = 1) {
-		interactiveMode := 0
-		state := 0
 		ToolTip, Keyboard screenshot cancelled
-		SetTimer, UpdatePreviewRectangle, Off
-		PreviewDestroy()
-		Sleep, 1000
-		ToolTip, 
+		GoSub, ScreenshotDone
 	} else {
 		interactiveMode := 1
 		state := 1
@@ -70,6 +69,14 @@ return
 +RIGHT::
 	MouseMove, mouseSpeedSlow, 0, 0, R
 return
+F1::
+	if(screenShotStartX = screenShotEndX) {
+		return
+	}
+	GoSub, CreateScreenshot	
+	GoSub, ScreenshotDone	
+Return
+
 Space::
 	if(state = 1) {
 		state := 2
@@ -83,6 +90,15 @@ Space::
 		PreviewDestroy()
 		GoSub, CreateScreenshot
 	}
+return
+
+ScreenshotDone:
+	interactiveMode := 0
+	state := 0		
+	SetTimer, UpdatePreviewRectangle, Off
+	PreviewDestroy()
+	Sleep, 1000
+	ToolTip, 
 return
 
 UpdatePreviewRectangle:
@@ -101,6 +117,8 @@ UpdatePreviewRectangle:
 	}
 	PreviewUpdate(startX, startY, width, height)
 return
+
+
 
 CreateScreenshot:
 	ToolTip, 
@@ -125,7 +143,13 @@ CreateScreenshot:
         SetClipboardBitmap(SnipFile)
     SoundBeep, 500, 5
 	*/
-	CaptureScreen(Xi ", " Yi ", " Xf ", " Yf, 0, 0) 
+
+	screenShotStartX := Xi
+	screenShotStartY := Yi
+	screenShotEndX := Xf
+	screenShotEndY := Yf	
+
+	CaptureScreen(screenShotStartX ", " screenShotStartY ", " screenShotEndX ", " screenShotEndY, 0, 0) 
     ;ToolTip, Mouse region capture to clipboard
 	Sleep, 1000
 	ToolTip,
