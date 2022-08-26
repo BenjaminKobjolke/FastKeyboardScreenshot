@@ -1,4 +1,5 @@
 ;https://www.autohotkey.com/boards/viewtopic.php?style=19&t=96159
+;@Ahk2Exe-ExeName %A_ScriptDir%\release\KeyboardScreenshot.exe
 
 #SingleInstance, force
 CoordMode, Mouse, Screen
@@ -12,6 +13,12 @@ screenShotStartX := -1
 screenShotStartY := -1
 screenShotEndX := -1
 screenShotEndY := -1
+
+
+if (!a_iscompiled) {
+	Menu, tray, icon, icon.ico,0,1
+}
+
 Menu, tray, NoStandard
 Menu, tray, add  ; Creates a separator line.
 Menu, tray, add, Reload  
