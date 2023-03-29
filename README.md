@@ -23,7 +23,15 @@ after you created at least one screenshot you can do the following
 - Press Alt Shift Q to start
 - F1
 
-Your screenshot will be copied to the clipboard (using the same reagion as your last screenshot)
+Your screenshot will be copied to the clipboard (using the same region as your last screenshot)
+
+### Screenshot with delay (useful for dropdown menus)
+
+- Press Alt Shift Q to start
+- Press D to enable delay
+- Move to the start position (you have 3 seconds)
+- Move to the end position (you have 3 seconds)
+- The screenshot will be automatically taken
 
 ## Requirements & Install
 

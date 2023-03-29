@@ -8,7 +8,9 @@ mouseSpeed := 50
 mouseSPeedSlow := 10
 interactiveMode := 0
 state := 0
-
+delayedScreenShotInProgress := 0
+startpositionTimerIndex := 0
+endpositionTimerIndex := 0
 screenShotStartX := -1
 screenShotStartY := -1
 screenShotEndX := -1
@@ -40,6 +42,39 @@ return
 return
 */
 
+StartpositionTimer:
+	if(startpositionTimerIndex = 0) {
+		ToolTip, Startposition will be set in 2 seconds
+	}
+	if(startpositionTimerIndex = 1) {
+		ToolTip, Startposition will be set in 1 seconds
+	}
+	if(startpositionTimerIndex = 2) {		
+		SetTimer, StartpositionTimer, Off
+		GoSub, GetStartPosition
+		ToolTip, Endposition will be set in 3 seconds
+		SetTimer, EndpositionTimer, 1000
+
+	}
+	startpositionTimerIndex := startpositionTimerIndex + 1
+return
+
+EndpositionTimer:
+	if(endpositionTimerIndex = 0) {
+		ToolTip, Endposition will be set in 2 seconds
+	}
+	if(endpositionTimerIndex = 1) {
+		ToolTip, Endposition will be set in 1 seconds
+	}
+	if(endpositionTimerIndex = 2) {
+		ToolTip, 
+		SetTimer, EndpositionTimer, Off
+		GoSub, GetEndPosition
+
+	}
+	endpositionTimerIndex := endpositionTimerIndex + 1
+return
+
 !+q::	
 	if(interactiveMode = 1) {
 		ToolTip, Keyboard screenshot cancelled
@@ -47,6 +82,9 @@ return
 	} else {
 		interactiveMode := 1
 		state := 1
+		startpositionTimerIndex := 0
+		endpositionTimerIndex := 0
+		delayedScreenShotInProgress := 0
 		ToolTip, move to START position with arrow keys`nthen press space
 	}	
 return
@@ -76,6 +114,30 @@ return
 +RIGHT::
 	MouseMove, mouseSpeedSlow, 0, 0, R
 return
+
+; delay screenshot
+D::
+	if(delayedScreenShotInProgress = 1) {
+		delayedScreenShotInProgress := 0
+		SetTimer, StartpositionTimer, Off
+		SetTimer, EndpositionTimer, Off
+		ToolTip, Delayed screenshot cancelled
+		GoSub, ScreenshotDone
+		return
+	}
+	delayedScreenShotInProgress := 1
+	if(state = 1) {
+		ToolTip, Startposition will be set in 3 seconds
+		; start timer of 3 seconds
+		SetTimer, StartpositionTimer, 1000
+	} else if(state = 2) {
+		ToolTip, Endposition will be set in 3 seconds
+		; start timer of 3 seconds
+		SetTimer, EndpositionTimer, 1000
+	}
+return
+
+; screenshot the same region again
 F1::
 	if(screenShotStartX = screenShotEndX) {
 		return
@@ -86,17 +148,29 @@ Return
 
 Space::
 	if(state = 1) {
-		state := 2
-		MouseGetPos, Xi, Yi
-		SetTimer, UpdatePreviewRectangle, 100
+		GoSub, GetStartPosition
 		ToolTip, move to END position with arrow keys`nthen press space
 	} else if(state = 2) {
-		state := 0
-		interactiveMode := 0		
-		SetTimer, UpdatePreviewRectangle, Off
-		PreviewDestroy()
-		GoSub, CreateScreenshot
+		GoSub, GetEndPosition
 	}
+return
+
+GetStartPosition:
+	state := 2
+	MouseGetPos, Xi, Yi
+	if(delayedScreenShotInProgress = 0) {
+		SetTimer, UpdatePreviewRectangle, 100
+	}
+return
+
+GetEndPosition:
+	state := 0
+	interactiveMode := 0		
+	SetTimer, UpdatePreviewRectangle, Off
+	if(delayedScreenShotInProgress = 0) {
+		PreviewDestroy()
+	}
+	GoSub, CreateScreenshot
 return
 
 ScreenshotDone:
