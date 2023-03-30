@@ -1,0 +1,3 @@
+[submodule "github_modules/Gdip"]
+	path = github_modules/Gdip
+	url = https://github.com/tariqporter/Gdip.git

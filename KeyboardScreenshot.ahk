@@ -1,5 +1,6 @@
 ;https://www.autohotkey.com/boards/viewtopic.php?style=19&t=96159
 ;@Ahk2Exe-ExeName %A_ScriptDir%\release\KeyboardScreenshot.exe
+#Include github_modules/Gdip/Gdip.ahk
 
 #SingleInstance, force
 CoordMode, Mouse, Screen
@@ -15,7 +16,8 @@ screenShotStartX := -1
 screenShotStartY := -1
 screenShotEndX := -1
 screenShotEndY := -1
-
+resizeNextScreenshotBy := 1
+saveToFile := 0
 
 if (!a_iscompiled) {
 	Menu, tray, icon, icon.ico,0,1
@@ -85,6 +87,8 @@ return
 		startpositionTimerIndex := 0
 		endpositionTimerIndex := 0
 		delayedScreenShotInProgress := 0
+		resizeNextScreenshotBy := 1
+		saveToFile := 0
 		ToolTip, move to START position with arrow keys`nthen press space
 	}	
 return
@@ -153,6 +157,26 @@ Space::
 	} else if(state = 2) {
 		GoSub, GetEndPosition
 	}
+return
+
+1::
+	ToolTip, Screenshot will be resized to 75`% of original
+	resizeNextScreenshotBy := 1.5
+return
+
+2::
+	ToolTip, Screenshot will be resized to 50`% of original
+	resizeNextScreenshotBy := 2
+return
+
+3::
+	ToolTip, Screenshot will be resized to 25`% of original
+	resizeNextScreenshotBy := 4
+return
+
+f::
+	ToolTip, Screenshot will be saved to file
+	saveToFile := 1
 return
 
 GetStartPosition:
@@ -230,7 +254,7 @@ CreateScreenshot:
 	screenShotEndX := Xf
 	screenShotEndY := Yf	
 
-	CaptureScreen(screenShotStartX ", " screenShotStartY ", " screenShotEndX ", " screenShotEndY, 0, 0) 
+	CaptureScreen(screenShotStartX ", " screenShotStartY ", " screenShotEndX ", " screenShotEndY, 0, saveToFile, 0, resizeNextScreenshotBy) 
     ;ToolTip, Mouse region capture to clipboard
 	Sleep, 1000
 	ToolTip,
@@ -278,8 +302,17 @@ PreviewDestroy() {
 ; Convert("C:\image.bmp", "C:\image.jpg", 95)
 ; Convert(0, "C:\clip.png")   ; Save the bitmap in the clipboard to sFileTo if sFileFr is "" or 0.
 
-CaptureScreen(aRect = 0, bCursor = False, sFile = "", nQuality = "")
+CaptureScreen(aRect = 0, bCursor = False, saveToFile = 0, nQuality = "", resizeBy = 1)
 {
+	
+	
+    ; Add Gdip startup
+    If !pToken := Gdip_Startup()
+    {
+        MsgBox, 48, Error!, Gdiplus failed to start. Please ensure you have gdiplus on your system
+        ExitApp
+    }
+
 	If !aRect
 	{
 		SysGet, nL, 76  ; virtual screen left & top
@@ -322,7 +355,7 @@ CaptureScreen(aRect = 0, bCursor = False, sFile = "", nQuality = "")
 	}
 
 	mDC := DllCall("CreateCompatibleDC", "ptr", 0, "ptr")
-	hBM := CreateDIBSection(mDC, nW, nH)
+	hBM := CreateDIBSectionVariant(mDC, nW, nH)
 	oBM := DllCall("SelectObject", "ptr", mDC, "ptr", hBM, "ptr")
 	hDC := DllCall("GetDC", "ptr", 0, "ptr")
 	DllCall("BitBlt", "ptr", mDC, "int", 0, "int", 0, "int", nW, "int", nH, "ptr", hDC, "int", nL, "int", nT, "Uint", 0x40CC0020)
@@ -333,10 +366,48 @@ CaptureScreen(aRect = 0, bCursor = False, sFile = "", nQuality = "")
 	DllCall("DeleteDC", "ptr", mDC)
 	If znW && znH
 		hBM := Zoomer(hBM, nW, nH, znW, znH)
-	If sFile = 0
-		SetClipboardData(hBM)
-	Else Convert(hBM, sFile, nQuality), DllCall("DeleteObject", "ptr", hBM)
+
+
+    ; Resize the screenshot
+	if(resizeBy > 1) {
+		pBitmap := Gdip_CreateBitmapFromHBITMAP(hBM)
+		pBitmapResized := Gdip_ResizeBitmap(pBitmap, nW // resizeBy, nH // resizeBy)
+		hBMResized := Gdip_CreateHBITMAPFromBitmap(pBitmapResized)
+		
+		; Replace the original hBM with the resized one
+		DllCall("DeleteObject", "ptr", hBM)
+		hBM := hBMResized
+
+		; Free resources
+		Gdip_DisposeImage(pBitmap)
+		Gdip_DisposeImage(pBitmapResized)
+	}
+
+	SetClipboardData(hBM)
+	
+	if(saveToFile = 1) {
+		;Convert(hBM, "c:\test.bmp", nQuality), DllCall("DeleteObject", "ptr", hBM)
+		FormatTime, currentDateTime, , yyyy_MM_dd_HH_mm_ss
+		filename := currentDateTime . ".jpg"
+		Convert(0, "screenshots\" . filename) 
+	}
+
+	DllCall("DeleteObject", "ptr", hBM)
+    ; Add Gdip shutdown at the end of the function
+    Gdip_Shutdown(pToken)	
 }
+
+
+Gdip_ResizeBitmap(pBitmap, newWidth, newHeight)
+{
+    pBitmapResized := Gdip_CreateBitmap(newWidth, newHeight)
+    G := Gdip_GraphicsFromImage(pBitmapResized)
+    Gdip_SetInterpolationMode(G, 7) ; High quality bicubic interpolation
+    Gdip_DrawImage(G, pBitmap, 0, 0, newWidth, newHeight, 0, 0, Gdip_GetImageWidth(pBitmap), Gdip_GetImageHeight(pBitmap))
+    Gdip_DeleteGraphics(G)
+    return pBitmapResized
+}
+
 
 CaptureCursor(hDC, nL, nT)
 {
@@ -365,7 +436,7 @@ Zoomer(hBM, nW, nH, znW, znH)
 {
 	mDC1 := DllCall("CreateCompatibleDC", "ptr", 0, "ptr")
 	mDC2 := DllCall("CreateCompatibleDC", "ptr", 0, "ptr")
-	zhBM := CreateDIBSection(mDC2, znW, znH)
+	zhBM := CreateDIBSectionVariant(mDC2, znW, znH)
 	oBM1 := DllCall("SelectObject", "ptr", mDC1, "ptr",  hBM, "ptr")
 	oBM2 := DllCall("SelectObject", "ptr", mDC2, "ptr", zhBM, "ptr")
 	DllCall("SetStretchBltMode", "ptr", mDC2, "int", 4)
@@ -428,7 +499,7 @@ Convert(sFileFr = "", sFileTo = "", nQuality = "")
 	DllCall("FreeLibrary", "ptr", hGdiPlus)
 }
 
-CreateDIBSection(hDC, nW, nH, bpp = 32, ByRef pBits = "")
+CreateDIBSectionVariant(hDC, nW, nH, bpp = 32, ByRef pBits = "")
 {
 	VarSetCapacity(bi, 40, 0)
 	NumPut(40, bi, "uint")
