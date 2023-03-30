@@ -51,7 +51,7 @@ Press 1,2,3 during screenshot process to scale the final output by 0.75, 0.5 or 
 
 #### Save screenshot to file
 
-Press F during the screenshot process to save the screenshot to a file in the subfolder screenshots.
+Press f during the screenshot process to save the screenshot to a file in the subfolder screenshots.
 It will also be copied to the clipboard as usual.
 
 ## Licence
