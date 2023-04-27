@@ -9,15 +9,18 @@ mouseSpeed := 50
 mouseSPeedSlow := 10
 interactiveMode := 0
 state := 0
-delayedScreenShotInProgress := 0
-startpositionTimerIndex := 0
-endpositionTimerIndex := 0
+delayedScreenShot := 0
+;delayedScreenShotInProgress := 0
+;startpositionTimerIndex := 0
+;endpositionTimerIndex := 0
+screenshotTimerIndex := 0
 screenShotStartX := -1
 screenShotStartY := -1
 screenShotEndX := -1
 screenShotEndY := -1
 resizeNextScreenshotBy := 1
 saveToFile := 0
+
 
 if (!a_iscompiled) {
 	Menu, tray, icon, icon.ico,0,1
@@ -44,37 +47,27 @@ return
 return
 */
 
-StartpositionTimer:
-	if(startpositionTimerIndex = 0) {
-		ToolTip, Startposition will be set in 2 seconds
+ScreenshotTimer:
+	if(screenshotTimerIndex = 0) {
+		ToolTip, Screenshot will be set in 4 seconds
 	}
-	if(startpositionTimerIndex = 1) {
-		ToolTip, Startposition will be set in 1 seconds
+	if(screenshotTimerIndex = 1) {
+		ToolTip, Screenshot will be set in 3 seconds
 	}
-	if(startpositionTimerIndex = 2) {		
-		SetTimer, StartpositionTimer, Off
-		GoSub, GetStartPosition
-		ToolTip, Endposition will be set in 3 seconds
-		SetTimer, EndpositionTimer, 1000
-
+	if(screenshotTimerIndex = 2) {
+		ToolTip, Screenshot will be set in 2 seconds
+	}	
+	if(screenshotTimerIndex = 3) {
+		ToolTip, Screenshot will be set in 1 seconds
 	}
-	startpositionTimerIndex := startpositionTimerIndex + 1
-return
-
-EndpositionTimer:
-	if(endpositionTimerIndex = 0) {
-		ToolTip, Endposition will be set in 2 seconds
-	}
-	if(endpositionTimerIndex = 1) {
-		ToolTip, Endposition will be set in 1 seconds
-	}
-	if(endpositionTimerIndex = 2) {
+	if(screenshotTimerIndex = 4) {
 		ToolTip, 
-		SetTimer, EndpositionTimer, Off
-		GoSub, GetEndPosition
+		SetTimer, ScreenshotTimer, Off
+		GoSub, CreateScreenshot
+		GoSub, ScreenshotDone
 
 	}
-	endpositionTimerIndex := endpositionTimerIndex + 1
+	screenshotTimerIndex := screenshotTimerIndex + 1
 return
 
 !+q::	
@@ -86,7 +79,9 @@ return
 		state := 1
 		startpositionTimerIndex := 0
 		endpositionTimerIndex := 0
+		screenshotTimerIndex := 0
 		delayedScreenShotInProgress := 0
+		delayedScreenShot := 0
 		resizeNextScreenshotBy := 1
 		saveToFile := 0
 		ToolTip, move to START position with arrow keys`nthen press space
@@ -121,24 +116,14 @@ return
 
 ; delay screenshot
 D::
-	if(delayedScreenShotInProgress = 1) {
-		delayedScreenShotInProgress := 0
-		SetTimer, StartpositionTimer, Off
-		SetTimer, EndpositionTimer, Off
+	if(delayedScreenShot = 1) {
+		delayedScreenShot := 0
 		ToolTip, Delayed screenshot cancelled
-		GoSub, ScreenshotDone
-		return
+	} else {
+		delayedScreenShot := 1
+		ToolTip, Delayed screenshot will be taken 5 seconds after you set the end position
 	}
-	delayedScreenShotInProgress := 1
-	if(state = 1) {
-		ToolTip, Startposition will be set in 3 seconds
-		; start timer of 3 seconds
-		SetTimer, StartpositionTimer, 1000
-	} else if(state = 2) {
-		ToolTip, Endposition will be set in 3 seconds
-		; start timer of 3 seconds
-		SetTimer, EndpositionTimer, 1000
-	}
+
 return
 
 ; screenshot the same region again
@@ -146,8 +131,14 @@ F1::
 	if(screenShotStartX = screenShotEndX) {
 		return
 	}
-	GoSub, CreateScreenshot	
-	GoSub, ScreenshotDone	
+
+	interactiveMode := 0
+	if(delayedScreenShot = 1) {
+		SetTimer, ScreenshotTimer, 1000
+	} else {
+		GoSub, CreateScreenshot
+		GoSub, ScreenshotDone
+	}	
 Return
 
 Space::
@@ -181,7 +172,7 @@ return
 
 GetStartPosition:
 	state := 2
-	MouseGetPos, Xi, Yi
+	MouseGetPos, screenShotStartX, screenShotStartY
 	if(delayedScreenShotInProgress = 0) {
 		SetTimer, UpdatePreviewRectangle, 100
 	}
@@ -190,11 +181,16 @@ return
 GetEndPosition:
 	state := 0
 	interactiveMode := 0		
+	MouseGetPos, screenShotEndX, screenShotEndY
 	SetTimer, UpdatePreviewRectangle, Off
 	if(delayedScreenShotInProgress = 0) {
 		PreviewDestroy()
 	}
-	GoSub, CreateScreenshot
+	if(delayedScreenShot = 1) {
+		SetTimer, ScreenshotTimer, 1000
+	} else {
+		GoSub, CreateScreenshot
+	}
 return
 
 ScreenshotDone:
@@ -208,16 +204,16 @@ return
 
 UpdatePreviewRectangle:
 	MouseGetPos, x, y
-	width := Abs(x - Xi)
-	height := Abs(y - Yi)
+	width := Abs(x - screenShotStartX)
+	height := Abs(y - screenShotStartY)
 
-	startX := Xi
-	if(x < Xi) {
+	startX := screenShotStartX
+	if(x < screenShotStartX) {
 		startX := x
 	}
 
-	startY := Yi
-	if(y < Yi) {
+	startY := screenShotStartY
+	if(y < screenShotStartY) {
 		startY := y
 	}
 	PreviewUpdate(startX, startY, width, height)
@@ -227,18 +223,18 @@ return
 
 CreateScreenshot:
 	ToolTip, 
-    MouseGetPos, Xf, Yf
-    If (Xi > Xf)
+    
+    If (screenShotStartX > screenShotEndX)
     {
-        Aux := Xi
-        Xi := Xf
-        Xf := Aux
+        helper := screenShotStartX
+        screenShotStartX := screenShotEndX
+        screenShotEndX := helper
     }
-    If (Yi > Yf)
+    If (screenShotStartY > screenShotEndY)
     {
-        Aux := Yi
-        Yi := Yf
-        Yf := Aux
+        helper := screenShotStartY
+		screenShotStartY := screenShotEndY
+		screenShotEndY := helper
     }
 	/*
     Screenshots := "C:\Users\" A_UserName "\Desktop\Screenshots"
@@ -248,11 +244,6 @@ CreateScreenshot:
         SetClipboardBitmap(SnipFile)
     SoundBeep, 500, 5
 	*/
-
-	screenShotStartX := Xi
-	screenShotStartY := Yi
-	screenShotEndX := Xf
-	screenShotEndY := Yf	
 
 	CaptureScreen(screenShotStartX ", " screenShotStartY ", " screenShotEndX ", " screenShotEndY, 0, saveToFile, 0, resizeNextScreenshotBy) 
     ;ToolTip, Mouse region capture to clipboard

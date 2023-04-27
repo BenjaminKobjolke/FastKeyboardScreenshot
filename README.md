@@ -41,9 +41,16 @@ Your screenshot will be copied to the clipboard (using the same region as your l
 
 - Press Alt Shift Q to start
 - Press D to enable delay
-- Move to the start position (you have 3 seconds)
-- Move to the end position (you have 3 seconds)
-- The screenshot will be automatically taken
+- Move to the start position and press space
+- Move to the end position and press space
+- The screenshot will be automatically taken after 5 seconds
+
+This can also be combined with the "same region" feature:
+
+- Press Alt Shift Q to start
+- Press D to enable delay
+- Press F1 to take a screenshot of the same region as last time
+- The screenshot will be automatically taken after 5 seconds
 
 #### Screenshot scale
 
