@@ -379,8 +379,8 @@ CaptureScreen(aRect = 0, bCursor = False, saveToFile = 0, nQuality = "", resizeB
 	if(saveToFile = 1) {
 		;Convert(hBM, "c:\test.bmp", nQuality), DllCall("DeleteObject", "ptr", hBM)
 		FormatTime, currentDateTime, , yyyy_MM_dd_HH_mm_ss
-		filename := currentDateTime . ".jpg"
-		Convert(0, "screenshots\" . filename) 
+		filename := A_ScriptDir . "\screenshots\" . currentDateTime . ".jpg"		
+		Convert(0, filename) 
 	}
 
 	DllCall("DeleteObject", "ptr", hBM)
@@ -444,7 +444,13 @@ Convert(sFileFr = "", sFileTo = "", nQuality = "")
 {
 	If (sFileTo = "")
 		sFileTo := A_ScriptDir . "\screen.bmp"
+		
 	SplitPath, sFileTo, , sDirTo, sExtTo, sNameTo
+	
+	if (!FileExist(sDirTo))
+	{
+	   FileCreateDir, %sDirTo%
+	}		
 	
 	If Not hGdiPlus := DllCall("LoadLibrary", "str", "gdiplus.dll", "ptr")
 		Return	sFileFr+0 ? SaveHBITMAPToFile(sFileFr, sDirTo (sDirTo = "" ? "" : "\") sNameTo ".bmp") : ""
