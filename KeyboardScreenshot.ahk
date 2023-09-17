@@ -21,7 +21,6 @@ screenShotEndY := -1
 resizeNextScreenshotBy := 1
 saveToFile := 0
 
-
 if (!a_iscompiled) {
 	Menu, tray, icon, icon.ico,0,1
 }
@@ -206,7 +205,11 @@ UpdatePreviewRectangle:
 	MouseGetPos, x, y
 	width := Abs(x - screenShotStartX)
 	height := Abs(y - screenShotStartY)
-
+	;M sgBox, %width% %height%
+   	scaling := 100 / (A_ScreenDPI/96*100)
+	width := width * scaling
+	height := height * scaling
+	;M sgBox, %width% %height%
 	startX := screenShotStartX
 	if(x < screenShotStartX) {
 		startX := x
