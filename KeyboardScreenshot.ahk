@@ -20,6 +20,7 @@ screenShotEndX := -1
 screenShotEndY := -1
 resizeNextScreenshotBy := 1
 saveToFile := 0
+uploadWithShareX := 0
 
 if (!a_iscompiled) {
 	Menu, tray, icon, icon.ico,0,1
@@ -83,6 +84,7 @@ return
 		delayedScreenShot := 0
 		resizeNextScreenshotBy := 1
 		saveToFile := 0
+		uploadWithShareX := 0
 		ToolTip, move to START position with arrow keys`nthen press space
 	}	
 return
@@ -195,6 +197,7 @@ return
 
 u::
 	ToolTip, Screenshot will be uploaded
+	uploadWithShareX := 1
 return
 
 GetStartPosition:
@@ -276,7 +279,7 @@ CreateScreenshot:
     SoundBeep, 500, 5
 	*/
 
-	CaptureScreen(screenShotStartX ", " screenShotStartY ", " screenShotEndX ", " screenShotEndY, 0, saveToFile, 0, resizeNextScreenshotBy) 
+	CaptureScreen(screenShotStartX ", " screenShotStartY ", " screenShotEndX ", " screenShotEndY, 0, saveToFile, uploadWithShareX, 0, resizeNextScreenshotBy) 
     ;ToolTip, Mouse region capture to clipboard
 	Sleep, 1000
 	ToolTip,
@@ -324,10 +327,8 @@ PreviewDestroy() {
 ; Convert("C:\image.bmp", "C:\image.jpg", 95)
 ; Convert(0, "C:\clip.png")   ; Save the bitmap in the clipboard to sFileTo if sFileFr is "" or 0.
 
-CaptureScreen(aRect = 0, bCursor = False, saveToFile = 0, nQuality = "", resizeBy = 1)
+CaptureScreen(aRect = 0, bCursor = False, saveToFile = 0, uploadWithShareX = 0, nQuality = "", resizeBy = 1)
 {
-	
-	
     ; Add Gdip startup
     If !pToken := Gdip_Startup()
     {
@@ -407,13 +408,22 @@ CaptureScreen(aRect = 0, bCursor = False, saveToFile = 0, nQuality = "", resizeB
 
 	SetClipboardData(hBM)
 	
-	if(saveToFile = 1) {
+	if(saveToFile = 1 || uploadWithShareX = 1) {
 		;Convert(hBM, "c:\test.bmp", nQuality), DllCall("DeleteObject", "ptr", hBM)
 		FormatTime, currentDateTime, , yyyy_MM_dd_HH_mm_ss
 		filename := A_ScriptDir . "\screenshots\" . currentDateTime . ".jpg"		
 		Convert(0, filename) 
 	}
 
+    if(uploadWithShareX = 1) {
+		;M sgBox, "C:\Program Files\ShareX\ShareX.exe" "%filename%"
+		RunWait, "C:\Program Files\ShareX\ShareX.exe" "%filename%"
+		if(saveToFile = 0) {
+			Sleep, 1000
+			FileDelete, %filename%
+		}
+	}
+	
 	DllCall("DeleteObject", "ptr", hBM)
     ; Add Gdip shutdown at the end of the function
     Gdip_Shutdown(pToken)	

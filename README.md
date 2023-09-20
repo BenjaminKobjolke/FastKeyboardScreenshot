@@ -61,6 +61,13 @@ Press 1,2,3 during screenshot process to scale the final output by 0.75, 0.5 or 
 Press f during the screenshot process to save the screenshot to a file in the subfolder screenshots.
 It will also be copied to the clipboard as usual.
 
+#### Upload with sharex
+
+Press u during the screenshot process to upload the screenshot to imgur using sharex.
+It will also be copied to the clipboard as usual.
+Note that you need to have sharex installed and configured for this to work.
+Currently te path is fixed to `C:\Program Files\ShareX\ShareX.exe`
+
 ## Licence
 
 GPL 2.0
