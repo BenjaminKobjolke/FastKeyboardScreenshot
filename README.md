@@ -7,7 +7,7 @@ Create a screenshot by selecting a region with the keyboard and copy it to the c
 ## How to use
 
 - Press Alt Shift Q to start
-- Move the mouse cursor with the arrow keys to the start position
+- Move the mouse cursor with the arrow keys or hjkl to the start position
 - Press space
 - Move the mouse cursor to the end position
 - Press space

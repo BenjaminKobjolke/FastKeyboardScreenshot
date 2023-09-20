@@ -88,11 +88,23 @@ return
 return
 
 #If interactiveMode = 1
+k::
+	MouseMove, 0, (mouseSpeed * -1), 0, R
+return
++k::
+	MouseMove, 0, (mouseSpeedSlow * -1), 0, R
+return
 UP::
 	MouseMove, 0, (mouseSpeed * -1), 0, R
 return
 +UP::
 	MouseMove, 0, (mouseSpeedSlow * -1), 0, R
+return
+j::
+	MouseMove, 0, mouseSpeed, 0, R
+return
++j::
+	MouseMove, 0, mouseSpeedSlow, 0, R
 return
 DOWN::
 	MouseMove, 0, mouseSpeed, 0, R
@@ -100,11 +112,23 @@ return
 +DOWN::
 	MouseMove, 0, mouseSpeedSlow, 0, R
 return
+h::
+	MouseMove, (mouseSpeed * -1), 0, 0, R
+return
++h::
+	MouseMove, (mouseSpeedSlow * -1), 0, 0, R
+return
 LEFT::
 	MouseMove, (mouseSpeed * -1), 0, 0, R
 return
 +LEFT::
 	MouseMove, (mouseSpeedSlow * -1), 0, 0, R
+return
+l::
+	MouseMove, mouseSpeed, 0, 0, R
+return
++l::
+	MouseMove, mouseSpeedSlow, 0, 0, R
 return
 RIGHT::
 	MouseMove, mouseSpeed, 0, 0, R
@@ -167,6 +191,10 @@ return
 f::
 	ToolTip, Screenshot will be saved to file
 	saveToFile := 1
+return
+
+u::
+	ToolTip, Screenshot will be uploaded
 return
 
 GetStartPosition:
