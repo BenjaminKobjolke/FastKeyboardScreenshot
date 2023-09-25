@@ -92,8 +92,6 @@ return
 		uploadWithShareX := 0
 		editWithShareX := 0
 		;SetTimer, MouseHintTimer, 100
-		MouseMove, 1, 1, 0, R
-		MouseMove, -1, -1, 0, R
 		ToolTip, move to START position with arrow keys`nthen press space
 	}	
 return
