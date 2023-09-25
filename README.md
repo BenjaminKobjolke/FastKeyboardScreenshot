@@ -68,6 +68,13 @@ It will also be copied to the clipboard as usual.
 Note that you need to have sharex installed and configured for this to work.
 Currently te path is fixed to `C:\Program Files\ShareX\ShareX.exe`
 
+#### edit with sharex
+
+Press e during the screenshot process to edit the screenshot with sharex.
+It will also be copied to the clipboard as usual.
+Note that you need to have sharex installed and configured for this to work.
+Currently te path is fixed to `C:\Program Files\ShareX\ShareX.exe`
+
 ## Licence
 
 GPL 2.0
