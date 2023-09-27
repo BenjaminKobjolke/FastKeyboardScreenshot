@@ -1,16 +1,20 @@
+#Requires AutoHotkey >=v2.0
 ;https://www.autohotkey.com/boards/viewtopic.php?style=19&t=96159
 ;@Ahk2Exe-ExeName %A_ScriptDir%\release\KeyboardScreenshot.exe
 #Include github_modules/Gdip/Gdip.ahk
+#Include github_modules/OCR/lib/OCR.ahk
 
-#SingleInstance, force
-CoordMode, Mouse, Screen
+#SingleInstance force
+CoordMode "Mouse", "Screen"
+
+previewGui := Gui()
 
 mouseSpeed := 50
 mouseSPeedSlow := 10
 interactiveMode := 0
 state := 0
 delayedScreenShot := 0
-;delayedScreenShotInProgress := 0
+delayedScreenShotInProgress := 0
 ;startpositionTimerIndex := 0
 ;endpositionTimerIndex := 0
 screenshotTimerIndex := 0
@@ -22,15 +26,17 @@ resizeNextScreenshotBy := 1
 saveToFile := 0
 uploadWithShareX := 0
 editWithShareX := 0
+ocrScreenshot := 0
 
 if (!a_iscompiled) {
-	Menu, tray, icon, icon.ico,0,1
+	TraySetIcon "icon.ico",0,1
 }
 
-Menu, tray, NoStandard
-Menu, tray, add  ; Creates a separator line.
-Menu, tray, add, Reload  
-Menu, tray, add, Exit
+tray := A_TrayMenu ; For convenience.
+tray.delete ; Delete the standard items.
+tray.add ; separator
+tray.add "Reload", Reload
+tray.add "Exit", Exit
 
 return
 
@@ -42,43 +48,35 @@ Exit:
 	ExitApp
 return
 
-/*
-#q::
-	reload
-return
-*/
-
-ScreenshotTimer:
+ScreenshotTimer() {
+	global screenshotTimerIndex
 	if(screenshotTimerIndex = 0) {
-		ToolTip, Screenshot will be set in 4 seconds
+		ToolTip "Screenshot will be set in 4 seconds"
 	}
 	if(screenshotTimerIndex = 1) {
-		ToolTip, Screenshot will be set in 3 seconds
+		ToolTip "Screenshot will be set in 3 seconds"
 	}
 	if(screenshotTimerIndex = 2) {
-		ToolTip, Screenshot will be set in 2 seconds
+		ToolTip "Screenshot will be set in 2 seconds"
 	}	
 	if(screenshotTimerIndex = 3) {
-		ToolTip, Screenshot will be set in 1 seconds
+		ToolTip "Screenshot will be set in 1 seconds"
 	}
 	if(screenshotTimerIndex = 4) {
-		ToolTip, 
-		SetTimer, ScreenshotTimer, Off
-		GoSub, CreateScreenshot
-		GoSub, ScreenshotDone
+		ToolTip  
+		SetTimer ScreenshotTimer, 0
+		CreateScreenshot()
+		ScreenshotDone()
 
 	}
 	screenshotTimerIndex := screenshotTimerIndex + 1
-return
+}
 
-MouseHintTimer:
-	MouseHintUpdate()
-return
-
-!+q::	
+!+q::
+{	
 	if(interactiveMode = 1) {
-		ToolTip, Keyboard screenshot cancelled
-		GoSub, ScreenshotDone
+		ToolTip "Keyboard screenshot cancelled"
+		ScreenshotDone()
 	} else {
 		interactiveMode := 1
 		state := 1
@@ -91,163 +89,198 @@ return
 		saveToFile := 0
 		uploadWithShareX := 0
 		editWithShareX := 0
+		ocrScreenshot := 0
 		;SetTimer, MouseHintTimer, 100
-		ToolTip, move to START position with arrow keys`nthen press space
+		ToolTip "Move to START position with arrow keys`nthen press space"
 	}	
-return
+}
 
-#If interactiveMode = 1
+#HotIf interactiveMode = 1
 k::
-	MouseMove, 0, (mouseSpeed * -1), 0, R
-return
+{
+	MouseMove 0, (mouseSpeed * -1), 0, "R"
+}
 +k::
-	MouseMove, 0, (mouseSpeedSlow * -1), 0, R
-return
+{
+	MouseMove 0, (mouseSpeedSlow * -1), 0, "R"
+}
 UP::
-	MouseMove, 0, (mouseSpeed * -1), 0, R
-return
+{
+	MouseMove 0, (mouseSpeed * -1), 0, "R"
+}
 +UP::
-	MouseMove, 0, (mouseSpeedSlow * -1), 0, R
-return
+{
+	MouseMove 0, (mouseSpeedSlow * -1), 0, "R"
+}
 j::
-	MouseMove, 0, mouseSpeed, 0, R
-return
+{
+	MouseMove 0, mouseSpeed, 0, "R"
+}
 +j::
-	MouseMove, 0, mouseSpeedSlow, 0, R
-return
+{
+	MouseMove 0, mouseSpeedSlow, 0, "R"
+}
 DOWN::
-	MouseMove, 0, mouseSpeed, 0, R
-return
+{
+	MouseMove 0, mouseSpeed, 0, "R"
+}
 +DOWN::
-	MouseMove, 0, mouseSpeedSlow, 0, R
-return
+{
+	MouseMove 0, mouseSpeedSlow, 0, "R"
+}
 h::
-	MouseMove, (mouseSpeed * -1), 0, 0, R
-return
+{
+	MouseMove (mouseSpeed * -1), 0, 0, "R"
+}
 +h::
-	MouseMove, (mouseSpeedSlow * -1), 0, 0, R
-return
+{
+	MouseMove (mouseSpeedSlow * -1), 0, 0, "R"
+}
 LEFT::
-	MouseMove, (mouseSpeed * -1), 0, 0, R
-return
+{
+	MouseMove (mouseSpeed * -1), 0, 0, "R"
+}
 +LEFT::
-	MouseMove, (mouseSpeedSlow * -1), 0, 0, R
-return
+{
+	MouseMove (mouseSpeedSlow * -1), 0, 0, "R"
+}
 l::
-	MouseMove, mouseSpeed, 0, 0, R
-return
+{
+	MouseMove mouseSpeed, 0, 0, "R"
+}
 +l::
-	MouseMove, mouseSpeedSlow, 0, 0, R
-return
+{
+	MouseMove mouseSpeedSlow, 0, 0, "R"
+}
 RIGHT::
-	MouseMove, mouseSpeed, 0, 0, R
-return
+{	
+	MouseMove mouseSpeed, 0, 0, "R"
+}
 +RIGHT::
-	MouseMove, mouseSpeedSlow, 0, 0, R
-return
+{
+	MouseMove mouseSpeedSlow, 0, 0, "R"
+}
 
 ; delay screenshot
 D::
+{
 	if(delayedScreenShot = 1) {
 		delayedScreenShot := 0
-		ToolTip, Delayed screenshot cancelled
+		ToolTip "Delayed screenshot cancelled"
 	} else {
 		delayedScreenShot := 1
-		ToolTip, Delayed screenshot will be taken 5 seconds after you set the end position
+		ToolTip "Delayed screenshot will be taken 5 seconds after you set the end position"
 	}
-
-return
+}
 
 ; screenshot the same region again
 F1::
+{
 	if(screenShotStartX = screenShotEndX) {
 		return
 	}
 
 	interactiveMode := 0
 	if(delayedScreenShot = 1) {
-		SetTimer, ScreenshotTimer, 1000
+		SetTimer ScreenshotTimer, 1000
 	} else {
-		GoSub, CreateScreenshot
-		GoSub, ScreenshotDone
+		CreateScreenshot()
+		ScreenshotDone()
 	}	
-Return
+}
 
 Space::
+{
 	if(state = 1) {
-		GoSub, GetStartPosition
-		ToolTip, move to END position with arrow keys`nthen press space
+		GetStartPosition()
+		ToolTip "Move to END position with arrow keys`nthen press space"
 	} else if(state = 2) {
-		GoSub, GetEndPosition
+		GetEndPosition()
 	}
-return
+}
 
 1::
-	ToolTip, Screenshot will be resized to 75`% of original
+{
+	ToolTip "Screenshot will be resized to 75`% of original"
 	resizeNextScreenshotBy := 1.5
-return
+}
 
 2::
-	ToolTip, Screenshot will be resized to 50`% of original
+{
+	ToolTip "Screenshot will be resized to 50`% of original"
 	resizeNextScreenshotBy := 2
-return
+}
 
 3::
-	ToolTip, Screenshot will be resized to 25`% of original
+{
+	ToolTip "Screenshot will be resized to 25`% of original"
 	resizeNextScreenshotBy := 4
-return
+}
 
 f::
-	ToolTip, Screenshot will be saved to file
+{
+	ToolTip "Screenshot will be saved to file"
 	saveToFile := 1
-return
+}	
 
 u::
-	ToolTip, Screenshot will be uploaded
+{
+	ToolTip "Screenshot will be uploaded"
 	uploadWithShareX := 1
 	editWithShareX := 0
-return
+}
 
 e::
-	ToolTip, Screenshot will be edited
+{
+	ToolTip "Screenshot will be edited"
 	editWithShareX := 1
 	uploadWithShareX := 0
-return
+}
 
-GetStartPosition:
+o::
+{
+	ToolTip "Screenshot will be OCR'd"
+	ocrScreenshot := 1
+}	
+
+GetStartPosition() {
+	global state, screenShotStartX, screenShotStartY, delayedScreenShotInProgress, delayedScreenShot, previewGui
 	state := 2
-	MouseGetPos, screenShotStartX, screenShotStartY
+	MouseGetPos screenShotStartX, screenShotStartY
 	if(delayedScreenShotInProgress = 0) {
-		SetTimer, UpdatePreviewRectangle, 100
+		previewGui := Gui()
+		SetTimer UpdatePreviewRectangle, 100
 	}
-return
+}
 
-GetEndPosition:
+GetEndPosition() {
+	global state, screenShotEndX, screenShotEndY, delayedScreenShotInProgress, delayedScreenShot, previewGui
 	state := 0
 	interactiveMode := 0		
-	MouseGetPos, screenShotEndX, screenShotEndY
-	SetTimer, UpdatePreviewRectangle, Off
+	MouseGetPos screenShotEndX, screenShotEndY
+	SetTimer UpdatePreviewRectangle, 0
 	if(delayedScreenShotInProgress = 0) {
 		PreviewDestroy()
 	}
 	if(delayedScreenShot = 1) {
-		SetTimer, ScreenshotTimer, 1000
+		SetTimer ScreenshotTimer, 1000
 	} else {
-		GoSub, CreateScreenshot
+		CreateScreenshot()
 	}
-return
+}
 
-ScreenshotDone:
+ScreenshotDone() {
+	global interactiveMode, state
 	interactiveMode := 0
 	state := 0		
-	SetTimer, UpdatePreviewRectangle, Off
+	SetTimer UpdatePreviewRectangle, 0
 	PreviewDestroy()
-	Sleep, 1000
-	ToolTip, 
-return
+	Sleep 1000
+	ToolTip  
+}
 
-UpdatePreviewRectangle:
-	MouseGetPos, x, y
+UpdatePreviewRectangle() {
+	MouseGetPos &x, &y
 	width := Abs(x - screenShotStartX)
 	height := Abs(y - screenShotStartY)
 	;M sgBox, %width% %height%
@@ -265,12 +298,12 @@ UpdatePreviewRectangle:
 		startY := y
 	}
 	PreviewUpdate(startX, startY, width, height)
-return
+}
 
+CreateScreenshot() {
+	global screenShotStartX, screenShotStartY, screenShotEndX, screenShotEndY, resizeNextScreenshotBy, saveToFile, uploadWithShareX, editWithShareX, ocrScreenshot, resizeNextScreenshotBy
 
-
-CreateScreenshot:
-	ToolTip, 
+	ToolTip  
     
     If (screenShotStartX > screenShotEndX)
     {
@@ -284,98 +317,48 @@ CreateScreenshot:
 		screenShotStartY := screenShotEndY
 		screenShotEndY := helper
     }
-	/*
-    Screenshots := "C:\Users\" A_UserName "\Desktop\Screenshots"
-    SnipFile := Screenshots "\" A_YYYY "-" A_MM "-" A_DD " " A_Hour "-" A_Min "-" A_Sec " Mouse region.png"
-    CaptureScreen(Xi ", " Yi ", " Xf ", " Yf, 0, SnipFile)
-    IfExist, %SnipFile%
-        SetClipboardBitmap(SnipFile)
-    SoundBeep, 500, 5
-	*/
 
-	CaptureScreen(screenShotStartX ", " screenShotStartY ", " screenShotEndX ", " screenShotEndY, 0, saveToFile, uploadWithShareX, editWithShareX, 0, resizeNextScreenshotBy) 
-    ;ToolTip, Mouse region capture to clipboard
-	Sleep, 1000
-	ToolTip,
-Return
-
-MouseHintUpdate() {
-    width := 50
-    Gui, mousehint: Color, Yellow
-    Gui, mousehint:Show, NoActivate w%width% h%width%, MouseSpot
-        
-    ;WinSet, Trans, 100, MouseSpot 
-    WinSet, Region, 0-0 W%width% H%width% E, MouseSpot
-
-    offset := width / 2  
-    MouseGetPos, MX, MY
-	WinMove, MouseSpot,,  MX - offset, MY - offset
+	CaptureScreen(screenShotStartX ", " screenShotStartY ", " screenShotEndX ", " screenShotEndY, 0, saveToFile, uploadWithShareX, editWithShareX, ocrScreenshot, 0, resizeNextScreenshotBy) 
+    ;ToolTip  Mouse region capture to clipboard
+	Sleep 1000
+	ToolTip 
 }
 
-
-
 PreviewUpdate(x, y, w, h) {
-	Gui, preview: +E0x80000 -Caption +ToolWindow +AlwaysOnTop +Lastfound +HWNDgSecond
-	WinSet, Transcolor, E0x80000 20
-	Gui, preview:Show, x%x% y%y% w%w% h%h%
+	global previewGui
+	previewGui := Gui("+E0x80000 -Caption +ToolWindow +AlwaysOnTop +Lastfound +HWNDgSecond")
+	;ToDo
+	;WinSet Transcolor, E0x80000 20
+	options := x%x% y%y% w%w% h%h%
+	previewGui.Show(%options%)
 }
 
 PreviewDestroy() {
-	Gui, preview:Destroy
+	global previewGui
+	previewGui.Destroy()
 }
 
-; Note that if the Microsoft PowerToys are installed and one or more images are selected in Windows Explorer,
-; then Ctrl+Win+P will open the ImageResizer tool https://www.bricelam.net/ImageResizer/   so I use Ctrl+Win+Alt+P now.
-
-;-----------------------------------------------------------------------------------------------------------
-; ===== PRINTSCREEN FUNCTIONS : START SCRIPT ===============================================================
-;-----------------------------------------------------------------------------------------------------------
-; https://autohotkey.com/board/topic/121619-screencaptureahk-broken-capturescreen-function-win-81-x64/ LinearSpoon (2015-02-20)
-; CaptureScreen(aRect, bCursor, sFileTo, nQuality)
-;
-; 1) If the optional parameter bCursor is True, captures the cursor too.
-; 2) If the optional parameter sFileTo is 0, set the image to Clipboard.
-;    If it is omitted or "", saves to screen.bmp in the script folder,
-;    otherwise to sFileTo which can be BMP/JPG/PNG/GIF/TIF.
-; 3) The optional parameter nQuality is applicable only when sFileTo is JPG. Set it to the desired quality level of the resulting JPG, an integer between 0 - 100.
-; 4) If aRect is 0/1/2/3, captures the entire desktop/active window/active client area/active monitor.
-; 5) aRect can be comma delimited sequence of coordinates, e.g., "Left, Top, Right, Bottom" or "Left, Top, Right, Bottom, Width_Zoomed, Height_Zoomed".
-;    In this case, only that portion of the rectangle will be captured. Additionally, in the latter case, zoomed to the new width/height, Width_Zoomed/Height_Zoomed.
-;
-; Example:
-; CaptureScreen(0)
-; CaptureScreen(1)
-; CaptureScreen(2)
-; CaptureScreen(3)
-; CaptureScreen("100, 100, 200, 200")
-; CaptureScreen("100, 100, 200, 200, 400, 400")   ; Zoomed
-;-----------------------------------------------------------------------------------------------------------
-; Convert(sFileFr, sFileTo, nQuality)
-; Convert("C:\image.bmp", "C:\image.jpg")
-; Convert("C:\image.bmp", "C:\image.jpg", 95)
-; Convert(0, "C:\clip.png")   ; Save the bitmap in the clipboard to sFileTo if sFileFr is "" or 0.
-
-CaptureScreen(aRect = 0, bCursor = False, saveToFile = 0, uploadWithShareX = 0, editWithShareX = 0, nQuality = "", resizeBy = 1)
+CaptureScreen(aRect := 0, bCursor := False, saveToFile := 0, uploadWithShareX := 0, editWithShareX := 0, ocrScreenshot := 0, nQuality := "", resizeBy := 1)
 {
     ; Add Gdip startup
     If !pToken := Gdip_Startup()
     {
-        MsgBox, 48, Error!, Gdiplus failed to start. Please ensure you have gdiplus on your system
+        MsgBox 48, "Error!", "Gdiplus failed to start. Please ensure you have gdiplus on your system"
         ExitApp
     }
 
 	If !aRect
 	{
-		SysGet, nL, 76  ; virtual screen left & top
-		SysGet, nT, 77
-		SysGet, nW, 78	; virtual screen width and height
-		SysGet, nH, 79
+		nL := SysGet(76)  ; virtual screen left & top
+		nT := SysGet(77)
+		nW := SysGet(78)  ; virtual screen width & height 
+		nH := SysGet(79)
 	}
 	Else If aRect = 1
-		WinGetPos, nL, nT, nW, nH, A
+		WinGetPos &nL, &nT, &nW, &nH, "A"
 	Else If aRect = 2
 	{
-		WinGet, hWnd, ID, A
+		WinGet hWnd, ID, "A"
 		VarSetCapacity(rt, 16, 0)
 		DllCall("GetClientRect" , "ptr", hWnd, "ptr", &rt)
 		DllCall("ClientToScreen", "ptr", hWnd, "ptr", &rt)
@@ -396,7 +379,7 @@ CaptureScreen(aRect = 0, bCursor = False, saveToFile = 0, uploadWithShareX = 0, 
 	}
 	Else
 	{
-		StringSplit, rt, aRect, `,, %A_Space%%A_Tab%
+		StringSplit rt, aRect, `,, %A_Space%%A_Tab%
 		nL := rt1	; convert the Left,top, right, bottom into left, top, width, height
 		nT := rt2
 		nW := rt3 - rt1
@@ -436,28 +419,39 @@ CaptureScreen(aRect = 0, bCursor = False, saveToFile = 0, uploadWithShareX = 0, 
 
 	SetClipboardData(hBM)
 	
-	if(saveToFile = 1 || uploadWithShareX = 1 || editWithShareX = 1) {
-		;Convert(hBM, "c:\test.bmp", nQuality), DllCall("DeleteObject", "ptr", hBM)
-		FormatTime, currentDateTime, , yyyy_MM_dd_HH_mm_ss
+	if(saveToFile = 1 || uploadWithShareX = 1 || editWithShareX = 1 || ocrScreenshot = 1) {
+		FormatTime currentDateTime, , yyyy_MM_dd_HH_mm_ss
 		filename := A_ScriptDir . "\screenshots\" . currentDateTime . ".jpg"		
-		Convert(0, filename) 
+		;ToDo
+		;Convert(0, filename) 
 	}
 
     if(uploadWithShareX = 1) {
 		;M sgBox, "C:\Program Files\ShareX\ShareX.exe" "%filename%"
-		RunWait, "C:\Program Files\ShareX\ShareX.exe" "%filename%"
+		RunWait "C:\Program Files\ShareX\ShareX.exe" "%filename%"
 		if(saveToFile = 0) {
-			Sleep, 1000
-			FileDelete, %filename%
+			Sleep 1000
+			FileDelete %filename%
 		}
 	}
 
 	if(editWithShareX = 1) {
 		;M sgBox, "C:\Program Files\ShareX\ShareX.exe" "%filename%"
-		RunWait, "C:\Program Files\ShareX\ShareX.exe" -imageEditor "%filename%"
+		RunWait "C:\Program Files\ShareX\ShareX.exe" "-imageEditor" "%filename%"
 		if(saveToFile = 0) {
-			Sleep, 1000
-			FileDelete, %filename%
+			Sleep 1000
+			FileDelete %filename%
+		}
+	}
+
+	if(ocrScreenshot = 1) {
+		;M sgBox, "C:\Program Files\ShareX\ShareX.exe" "%filename%"
+		Result := OCR.FromFile(filename)
+		text := Result.Text
+		MsgBox %text%
+		if(saveToFile = 0) {
+			Sleep 1000
+			FileDelete %filename%
 		}
 	}
 	
@@ -518,63 +512,7 @@ Zoomer(hBM, nW, nH, znW, znH)
 	Return zhBM
 }
 
-Convert(sFileFr = "", sFileTo = "", nQuality = "")
-{
-	If (sFileTo = "")
-		sFileTo := A_ScriptDir . "\screen.bmp"
-		
-	SplitPath, sFileTo, , sDirTo, sExtTo, sNameTo
-	
-	if (!FileExist(sDirTo))
-	{
-	   FileCreateDir, %sDirTo%
-	}		
-	
-	If Not hGdiPlus := DllCall("LoadLibrary", "str", "gdiplus.dll", "ptr")
-		Return	sFileFr+0 ? SaveHBITMAPToFile(sFileFr, sDirTo (sDirTo = "" ? "" : "\") sNameTo ".bmp") : ""
-	VarSetCapacity(si, 16, 0), si := Chr(1)
-	DllCall("gdiplus\GdiplusStartup", "UintP", pToken, "ptr", &si, "ptr", 0)
-
-	If !sFileFr
-	{
-		DllCall("OpenClipboard", "ptr", 0)
-		If	(DllCall("IsClipboardFormatAvailable", "Uint", 2) && (hBM:=DllCall("GetClipboardData", "Uint", 2, "ptr")))
-			DllCall("gdiplus\GdipCreateBitmapFromHBITMAP", "ptr", hBM, "ptr", 0, "ptr*", pImage)
-		DllCall("CloseClipboard")
-	}
-	Else If	sFileFr Is Integer
-		DllCall("gdiplus\GdipCreateBitmapFromHBITMAP", "ptr", sFileFr, "ptr", 0, "ptr*", pImage)
-	Else	DllCall("gdiplus\GdipLoadImageFromFile", "wstr", sFileFr, "ptr*", pImage)
-	DllCall("gdiplus\GdipGetImageEncodersSize", "UintP", nCount, "UintP", nSize)
-	VarSetCapacity(ci,nSize,0)
-	DllCall("gdiplus\GdipGetImageEncoders", "Uint", nCount, "Uint", nSize, "ptr", &ci)
-	struct_size := 48+7*A_PtrSize, offset := 32 + 3*A_PtrSize, pCodec := &ci - struct_size
-	Loop, %	nCount
-		If InStr(StrGet(Numget(offset + (pCodec+=struct_size)), "utf-16") , "." . sExtTo)
-			break
-
-	If (InStr(".JPG.JPEG.JPE.JFIF", "." . sExtTo) && nQuality<>"" && pImage && pCodec < &ci + nSize)
-	{
-		DllCall("gdiplus\GdipGetEncoderParameterListSize", "ptr", pImage, "ptr", pCodec, "UintP", nCount)
-		VarSetCapacity(pi,nCount,0), struct_size := 24 + A_PtrSize
-		DllCall("gdiplus\GdipGetEncoderParameterList", "ptr", pImage, "ptr", pCodec, "Uint", nCount, "ptr", &pi)
-		Loop, %	NumGet(pi,0,"uint")
-			If (NumGet(pi,struct_size*(A_Index-1)+16+A_PtrSize,"uint")=1 && NumGet(pi,struct_size*(A_Index-1)+20+A_PtrSize,"uint")=6)
-			{
-				pParam := &pi+struct_size*(A_Index-1)
-				NumPut(nQuality,NumGet(NumPut(4,NumPut(1,pParam+0,"uint")+16+A_PtrSize,"uint")),"uint")
-				Break
-			}
-	}
-
-	If pImage
-		pCodec < &ci + nSize	? DllCall("gdiplus\GdipSaveImageToFile", "ptr", pImage, "wstr", sFileTo, "ptr", pCodec, "ptr", pParam) : DllCall("gdiplus\GdipCreateHBITMAPFromBitmap", "ptr", pImage, "ptr*", hBitmap, "Uint", 0) . SetClipboardData(hBitmap), DllCall("gdiplus\GdipDisposeImage", "ptr", pImage)
-
-	DllCall("gdiplus\GdiplusShutdown" , "Uint", pToken)
-	DllCall("FreeLibrary", "ptr", hGdiPlus)
-}
-
-CreateDIBSectionVariant(hDC, nW, nH, bpp = 32, ByRef pBits = "")
+CreateDIBSectionVariant(hDC, nW, nH, bpp := 32, pBits := "")
 {
 	VarSetCapacity(bi, 40, 0)
 	NumPut(40, bi, "uint")
@@ -613,5 +551,3 @@ SetClipboardData(hBitmap)
 	DllCall("SetClipboardData", "Uint", 8, "ptr", hDIB)
 	DllCall("CloseClipboard")
 }
-; ===== PRINTSCREEN : END SCRIPT ===========================================================================
-
