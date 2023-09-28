@@ -75,6 +75,11 @@ It will also be copied to the clipboard as usual.
 Note that you need to have sharex installed and configured for this to work.
 Currently te path is fixed to `C:\Program Files\ShareX\ShareX.exe`
 
+#### ocr
+
+Press o during the screenshot process to run ocr on the screenshot.
+The text will be copied to the clipboard and not the image.
+
 ## Licence
 
 GPL 2.0
