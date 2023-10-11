@@ -31,7 +31,8 @@ Hold down shift while moving the cursor to decrease the speed.
 after you created at least one screenshot you can do the following
 
 - Press Alt Shift Q to start
-- F1
+- activate any of the additional features, like resizing or saving to file
+- press r
 
 Your screenshot will be copied to the clipboard (using the same region as your last screenshot)
 

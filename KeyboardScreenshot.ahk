@@ -159,10 +159,13 @@ D::
 return
 
 ; screenshot the same region again
-F1::
+r::
 	if(screenShotStartX = screenShotEndX) {
 		return
 	}
+
+	ToolTip, will use the same region again
+	Sleep, 1000	
 
 	interactiveMode := 0
 	if(delayedScreenShot = 1) {
@@ -256,7 +259,8 @@ UpdatePreviewRectangle:
 	width := Abs(x - screenShotStartX)
 	height := Abs(y - screenShotStartY)
 	;M sgBox, %width% %height%
-   	scaling := 100 / (A_ScreenDPI/96*100)
+	scaling := 100 / (A_ScreenDPI/96*100)
+	;M sgBox, %A_ScreenDPI% %scaling%
 	width := width * scaling
 	height := height * scaling
 	;M sgBox, %width% %height%
