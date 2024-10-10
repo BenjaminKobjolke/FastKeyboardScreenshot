@@ -91,7 +91,7 @@ return
 		uploadWithShareX := 0
 		editWithShareX := 0
 		ocrScreenshot := 0
-		;SetTimer, MouseHintTimer, 100
+		SetTimer, MouseHintTimer, 100
 		ToolTip, move to START position with arrow keys`nthen press space
 	}	
 return
@@ -236,7 +236,7 @@ GetEndPosition:
 	MouseGetPos, screenShotEndX, screenShotEndY
 	SetTimer, UpdatePreviewRectangle, Off
 	if(delayedScreenShotInProgress = 0) {
-		PreviewDestroy()
+		DestroyGuis()
 	}
 	if(delayedScreenShot = 1) {
 		SetTimer, ScreenshotTimer, 1000
@@ -249,7 +249,7 @@ ScreenshotDone:
 	interactiveMode := 0
 	state := 0		
 	SetTimer, UpdatePreviewRectangle, Off
-	PreviewDestroy()
+	DestroyGuis()
 	Sleep, 1000
 	ToolTip, 
 return
@@ -310,10 +310,11 @@ Return
 
 MouseHintUpdate() {
     width := 50
+	Gui, mousehint: -Caption +ToolWindow +AlwaysOnTop +Lastfound
     Gui, mousehint: Color, Yellow
     Gui, mousehint:Show, NoActivate w%width% h%width%, MouseSpot
         
-    ;WinSet, Trans, 100, MouseSpot 
+    WinSet, Trans, 100, MouseSpot 
     WinSet, Region, 0-0 W%width% H%width% E, MouseSpot
 
     offset := width / 2  
@@ -333,6 +334,15 @@ PreviewDestroy() {
 	Gui, preview:Destroy
 }
 
+MouseHintDestroy() {
+	Gui, mousehint:Destroy
+}
+
+DestroyGuis() {
+	SetTimer, MouseHintTimer, Off
+	PreviewDestroy()
+	MouseHintDestroy()
+}
 ; Note that if the Microsoft PowerToys are installed and one or more images are selected in Windows Explorer,
 ; then Ctrl+Win+P will open the ImageResizer tool https://www.bricelam.net/ImageResizer/   so I use Ctrl+Win+Alt+P now.
 
@@ -450,11 +460,17 @@ CaptureScreen(aRect = 0, bCursor = False, saveToFile = 0, uploadWithShareX = 0, 
 		FormatTime, currentDateTime, , yyyy_MM_dd_HH_mm_ss
 		baseFilename := A_ScriptDir . "\screenshots\" . currentDateTime
 		filename := baseFilename . ".jpg"
-		Convert(0, filename) 
+		Convert(0, filename, 100) 
 	}
 
     if(uploadWithShareX = 1) {
 		;M sgBox, "C:\Program Files\ShareX\ShareX.exe" "%filename%"
+		ToolTip, Uploading screenshot with ShareX
+		Sleep, 100
+		; copy sharex path and filename to clipboard
+		complete_path = "C:\Program Files\ShareX\ShareX.exe" "%filename%"
+		clipboard := complete_path
+		Sleep, 100
 		RunWait, "C:\Program Files\ShareX\ShareX.exe" "%filename%"
 		if(saveToFile = 0) {
 			Sleep, 1000
