@@ -460,6 +460,7 @@ CaptureScreen(aRect = 0, bCursor = False, saveToFile = 0, uploadWithShareX = 0, 
 		FormatTime, currentDateTime, , yyyy_MM_dd_HH_mm_ss
 		baseFilename := A_ScriptDir . "\screenshots\" . currentDateTime
 		filename := baseFilename . ".jpg"
+		Sleep, 100
 		Convert(0, filename, 100) 
 	}
 
