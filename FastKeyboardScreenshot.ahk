@@ -5,6 +5,7 @@ CoordMode, Mouse, Screen
 
 ; Global variable to store ShareX path
 sharexPath := ""
+sharexSearched := false
 
 mouseSpeed := 50
 mouseSPeedSlow := 10
@@ -48,8 +49,29 @@ FindShareX()
     Return ""
 }
 
-; Initialize ShareX path
-sharexPath := FindShareX()
+; Initialize ShareX path from settings or by searching
+; First check if we have a stored path in settings.ini
+IniRead, sharexPath, %A_ScriptDir%\settings.ini, General, ShareXPath, NOT_FOUND
+IniRead, sharexNotFound, %A_ScriptDir%\settings.ini, General, ShareXNotFound, 0
+
+; If path is not in settings or marked as not found, search for it
+if (sharexPath = "NOT_FOUND" && sharexNotFound = 0) {
+    sharexPath := FindShareX()
+    sharexSearched := true
+    
+    ; Store the result in settings.ini
+    if (sharexPath = "") {
+        ; ShareX was not found, mark it as not found
+        IniWrite, 1, %A_ScriptDir%\settings.ini, General, ShareXNotFound
+    } else {
+        ; ShareX was found, store the path
+        IniWrite, %sharexPath%, %A_ScriptDir%\settings.ini, General, ShareXPath
+        IniWrite, 0, %A_ScriptDir%\settings.ini, General, ShareXNotFound
+    }
+} else if (sharexNotFound = 1) {
+    ; ShareX was previously not found, set path to empty
+    sharexPath := ""
+}
 if (!a_iscompiled) {
 	Menu, tray, icon, icon.ico,0,1
 }
