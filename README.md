@@ -59,8 +59,11 @@ Press 1,2,3 during screenshot process to scale the final output by 0.75, 0.5 or 
 
 #### Save screenshot to file
 
-Press f during the screenshot process to save the screenshot to a file in the subfolder screenshots.
-It will also be copied to the clipboard as usual.
+Press f during the screenshot process to save the screenshot to a file.
+By default, screenshots are saved in the subfolder "screenshots" relative to the script directory.
+You can change this location in the settings.ini file by modifying the ScreenshotFolder value.
+See settings_example.ini for an example configuration.
+The screenshot will also be copied to the clipboard as usual.
 
 #### Upload with sharex
 

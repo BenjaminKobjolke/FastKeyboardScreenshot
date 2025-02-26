@@ -302,7 +302,7 @@ CreateScreenshot:
     SoundBeep, 500, 5
 	*/
 
-	CaptureScreen(screenShotStartX ", " screenShotStartY ", " screenShotEndX ", " screenShotEndY, 0, saveToFile, uploadWithShareX, editWithShareX, ocrScreenshot, 0, resizeNextScreenshotBy) 
+	CaptureScreen(screenShotStartX ", " screenShotStartY ", " screenShotEndX ", " screenShotEndY, 0, saveToFile, uploadWithShareX, editWithShareX, ocrScreenshot, 0, resizeNextScreenshotBy, screenshotFolder) 
     ;ToolTip, Mouse region capture to clipboard
 	Sleep, 1000
 	ToolTip,
@@ -364,7 +364,7 @@ PreviewDestroy() {
 ; Convert("C:\image.bmp", "C:\image.jpg", 95)
 ; Convert(0, "C:\clip.png")   ; Save the bitmap in the clipboard to sFileTo if sFileFr is "" or 0.
 
-CaptureScreen(aRect = 0, bCursor = False, saveToFile = 0, uploadWithShareX = 0, editWithShareX = 0, ocrScreenshot = 0, nQuality = "", resizeBy = 1)
+CaptureScreen(aRect = 0, bCursor = False, saveToFile = 0, uploadWithShareX = 0, editWithShareX = 0, ocrScreenshot = 0, nQuality = "", resizeBy = 1, screenshotFolder = "")
 {
     ; Add Gdip startup
     If !pToken := Gdip_Startup()
@@ -448,43 +448,47 @@ CaptureScreen(aRect = 0, bCursor = False, saveToFile = 0, uploadWithShareX = 0, 
 	if(saveToFile = 1 || uploadWithShareX = 1 || editWithShareX = 1 || ocrScreenshot = 1) {
 		;Convert(hBM, "c:\test.bmp", nQuality), DllCall("DeleteObject", "ptr", hBM)
 		FormatTime, currentDateTime, , yyyy_MM_dd_HH_mm_ss
-		baseFilename := A_ScriptDir . "\screenshots\" . currentDateTime
-		filename := baseFilename . ".jpg"
-		Convert(0, filename) 
+		baseFilename := currentDateTime
+		filename := baseFilename . ".jpg"		
+		Convert(0, filename, "", screenshotFolder) 
 	}
 
     if(uploadWithShareX = 1) {
-		;M sgBox, "C:\Program Files\ShareX\ShareX.exe" "%filename%"
-		RunWait, "C:\Program Files\ShareX\ShareX.exe" "%filename%"
+		fullFilename := screenshotFolder . "\" . filename
+		;M sgBox, "C:\Program Files\ShareX\ShareX.exe" "%fullFilename%"
+		RunWait, "C:\Program Files\ShareX\ShareX.exe" "%fullFilename%"
 		if(saveToFile = 0) {
 			Sleep, 1000
-			FileDelete, %filename%
+			FileDelete, %fullFilename%
 		}
 	}
 
 	if(editWithShareX = 1) {
-		;M sgBox, "C:\Program Files\ShareX\ShareX.exe" "%filename%"
-		RunWait, "C:\Program Files\ShareX\ShareX.exe" -imageEditor "%filename%"
+		fullFilename := screenshotFolder . "\" . filename
+		;M sgBox, "C:\Program Files\ShareX\ShareX.exe" "%fullFilename%"
+		RunWait, "C:\Program Files\ShareX\ShareX.exe" -imageEditor "%fullFilename%"
 		if(saveToFile = 0) {
 			Sleep, 1000
-			FileDelete, %filename%
+			FileDelete, %fullFilename%
 		}
 	}
 
 	if(ocrScreenshot = 1) {
-		;M sgBox, "C:\Program Files\ShareX\ShareX.exe" "%filename%"
+		fullBaseFilename := screenshotFolder . "\" . baseFilename
+		fullFilename := screenshotFolder . "\" . filename
+		;M sgBox, "C:\Program Files\ShareX\ShareX.exe" "%fullFilename%"
 		if (!a_iscompiled) {
-			RunWait, "ocr.ahk" "%baseFilename%"
+			RunWait, "ocr.ahk" "%fullBaseFilename%"
 		} else {
-			RunWait, "ocr.exe" "%baseFilename%"
+			RunWait, "ocr.exe" "%fullBaseFilename%"
 		}
-		textFilename := baseFilename . ".txt"
+		textFilename := fullBaseFilename . ".txt"
 		FileRead, text, %textFilename%
 		clipboard := text
 		FileDelete, %textFilename%
 		if(saveToFile = 0) {
 			Sleep, 1000
-			FileDelete, %filename%
+			FileDelete, %fullFilename%
 		}
 	}
 
@@ -545,13 +549,17 @@ Zoomer(hBM, nW, nH, znW, znH)
 	Return zhBM
 }
 
-Convert(sFileFr = "", sFileTo = "", nQuality = "")
+Convert(sFileFr = "", sFileTo = "", nQuality = "", screenshotFolder = "")
 {
 	If (sFileTo = "")
 		sFileTo := A_ScriptDir . "\screen.bmp"
-		
-	SplitPath, sFileTo, , sDirTo, sExtTo, sNameTo
 	
+	; Add the screenshot folder path to the filename
+	;sFileTo := screenshotFolder . "\" . sFileTo	
+	
+	SplitPath, sFileTo, , sDirTo, sExtTo, sNameTo
+	sDirTo := screenshotFolder
+
 	if (!FileExist(sDirTo))
 	{
 	   FileCreateDir, %sDirTo%
@@ -593,9 +601,11 @@ Convert(sFileFr = "", sFileTo = "", nQuality = "")
 				Break
 			}
 	}
-
+	
+	filePath = %sDirTo%\%sFileTo%
+	
 	If pImage
-		pCodec < &ci + nSize	? DllCall("gdiplus\GdipSaveImageToFile", "ptr", pImage, "wstr", sFileTo, "ptr", pCodec, "ptr", pParam) : DllCall("gdiplus\GdipCreateHBITMAPFromBitmap", "ptr", pImage, "ptr*", hBitmap, "Uint", 0) . SetClipboardData(hBitmap), DllCall("gdiplus\GdipDisposeImage", "ptr", pImage)
+		pCodec < &ci + nSize	? DllCall("gdiplus\GdipSaveImageToFile", "ptr", pImage, "wstr", filePath, "ptr", pCodec, "ptr", pParam) : DllCall("gdiplus\GdipCreateHBITMAPFromBitmap", "ptr", pImage, "ptr*", hBitmap, "Uint", 0) . SetClipboardData(hBitmap), DllCall("gdiplus\GdipDisposeImage", "ptr", pImage)
 
 	DllCall("gdiplus\GdiplusShutdown" , "Uint", pToken)
 	DllCall("FreeLibrary", "ptr", hGdiPlus)
@@ -641,4 +651,3 @@ SetClipboardData(hBitmap)
 	DllCall("CloseClipboard")
 }
 ; ===== PRINTSCREEN : END SCRIPT ===========================================================================
-
