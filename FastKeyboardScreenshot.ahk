@@ -3,6 +3,9 @@
 
 CoordMode, Mouse, Screen
 
+; Global variable to store ShareX path
+sharexPath := ""
+
 mouseSpeed := 50
 mouseSPeedSlow := 10
 interactiveMode := 0
@@ -22,6 +25,31 @@ uploadWithShareX := 0
 editWithShareX := 0
 ocrScreenshot := 0
 
+; Function to find ShareX.exe on the C drive
+FindShareX()
+{
+    ; Check common installation locations first (for efficiency)
+    commonPaths := ["C:\Program Files\ShareX\ShareX.exe", "C:\Program Files (x86)\ShareX\ShareX.exe"]
+    
+    For index, path in commonPaths
+    {
+        If FileExist(path)
+            Return path
+    }
+    
+    ; If not found in common locations, search C drive
+    Loop, Files, C:\*ShareX*.exe, R
+    {
+        If InStr(A_LoopFileName, "ShareX.exe")
+            Return A_LoopFilePath
+    }
+    
+    ; Not found
+    Return ""
+}
+
+; Initialize ShareX path
+sharexPath := FindShareX()
 if (!a_iscompiled) {
 	Menu, tray, icon, icon.ico,0,1
 }
@@ -302,7 +330,7 @@ CreateScreenshot:
     SoundBeep, 500, 5
 	*/
 
-	CaptureScreen(screenShotStartX ", " screenShotStartY ", " screenShotEndX ", " screenShotEndY, 0, saveToFile, uploadWithShareX, editWithShareX, ocrScreenshot, 0, resizeNextScreenshotBy, screenshotFolder) 
+	CaptureScreen(screenShotStartX ", " screenShotStartY ", " screenShotEndX ", " screenShotEndY, 0, saveToFile, uploadWithShareX, editWithShareX, ocrScreenshot, 0, resizeNextScreenshotBy, screenshotFolder, sharexPath) 
     ;ToolTip, Mouse region capture to clipboard
 	Sleep, 1000
 	ToolTip,
@@ -374,7 +402,7 @@ DestroyGuis() {
 ; Convert("C:\image.bmp", "C:\image.jpg", 95)
 ; Convert(0, "C:\clip.png")   ; Save the bitmap in the clipboard to sFileTo if sFileFr is "" or 0.
 
-CaptureScreen(aRect = 0, bCursor = False, saveToFile = 0, uploadWithShareX = 0, editWithShareX = 0, ocrScreenshot = 0, nQuality = "", resizeBy = 1, screenshotFolder = "")
+CaptureScreen(aRect = 0, bCursor = False, saveToFile = 0, uploadWithShareX = 0, editWithShareX = 0, ocrScreenshot = 0, nQuality = "", resizeBy = 1, screenshotFolder = "", sharexPath = "")
 {
     ; Add Gdip startup
     If !pToken := Gdip_Startup()
@@ -465,43 +493,59 @@ CaptureScreen(aRect = 0, bCursor = False, saveToFile = 0, uploadWithShareX = 0, 
 
     if(uploadWithShareX = 1) {
 		fullFilename := screenshotFolder . "\" . filename
-		;M sgBox, "C:\Program Files\ShareX\ShareX.exe" "%fullFilename%"
-		RunWait, "C:\Program Files\ShareX\ShareX.exe" "%fullFilename%"
-		baseFilename := A_ScriptDir . "\screenshots\" . currentDateTime
-		filename := baseFilename . ".jpg"
-		Sleep, 100
-		Convert(0, filename, 100) 
+		
+		; Check if ShareX was found
+		if (sharexPath = "") {
+			MsgBox, 16, Error, ShareX not found. Cannot upload screenshot.
+		} else {
+			;M sgBox, %sharexPath% "%fullFilename%"
+			RunWait, %sharexPath% "%fullFilename%"
+			baseFilename := A_ScriptDir . "\screenshots\" . currentDateTime
+			filename := baseFilename . ".jpg"
+			Sleep, 100
+			Convert(0, filename, 100)
+		}
 	}
 
     if(uploadWithShareX = 1) {
-		;M sgBox, "C:\Program Files\ShareX\ShareX.exe" "%filename%"
-		ToolTip, Uploading screenshot with ShareX
-		Sleep, 100
-		; copy sharex path and filename to clipboard
-		complete_path = "C:\Program Files\ShareX\ShareX.exe" "%filename%"
-		clipboard := complete_path
-		Sleep, 100
-		RunWait, "C:\Program Files\ShareX\ShareX.exe" "%filename%"
-		if(saveToFile = 0) {
-			Sleep, 1000
-			FileDelete, %fullFilename%
+		; Check if ShareX was found
+		if (sharexPath = "") {
+			MsgBox, 16, Error, ShareX not found. Cannot upload screenshot.
+		} else {
+			;M sgBox, %sharexPath% "%filename%"
+			ToolTip, Uploading screenshot with ShareX
+			Sleep, 100
+			; copy sharex path and filename to clipboard
+			complete_path = %sharexPath% "%filename%"
+			clipboard := complete_path
+			Sleep, 100
+			RunWait, %sharexPath% "%filename%"
+			if(saveToFile = 0) {
+				Sleep, 1000
+				FileDelete, %fullFilename%
+			}
 		}
 	}
 
 	if(editWithShareX = 1) {
 		fullFilename := screenshotFolder . "\" . filename
-		;M sgBox, "C:\Program Files\ShareX\ShareX.exe" "%fullFilename%"
-		RunWait, "C:\Program Files\ShareX\ShareX.exe" -imageEditor "%fullFilename%"
-		if(saveToFile = 0) {
-			Sleep, 1000
-			FileDelete, %fullFilename%
+		
+		; Check if ShareX was found
+		if (sharexPath = "") {
+			MsgBox, 16, Error, ShareX not found. Cannot edit screenshot.
+		} else {
+			;M sgBox, %sharexPath% "%fullFilename%"
+			RunWait, %sharexPath% -imageEditor "%fullFilename%"
+			if(saveToFile = 0) {
+				Sleep, 1000
+				FileDelete, %fullFilename%
+			}
 		}
 	}
 
 	if(ocrScreenshot = 1) {
 		fullBaseFilename := screenshotFolder . "\" . baseFilename
-		fullFilename := screenshotFolder . "\" . filename
-		;M sgBox, "C:\Program Files\ShareX\ShareX.exe" "%fullFilename%"
+		fullFilename := screenshotFolder . "\" . filename		
 		if (!a_iscompiled) {
 			RunWait, "ocr.ahk" "%fullBaseFilename%"
 		} else {
