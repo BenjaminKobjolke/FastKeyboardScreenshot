@@ -520,12 +520,16 @@ CaptureScreen(aRect = 0, bCursor = False, saveToFile = 0, uploadWithShareX = 0, 
 		if (sharexPath = "") {
 			MsgBox, 16, Error, ShareX not found. Cannot upload screenshot.
 		} else {
-			;M sgBox, %sharexPath% "%fullFilename%"
+			Sleep, 1000
 			RunWait, %sharexPath% "%fullFilename%"
 			baseFilename := A_ScriptDir . "\screenshots\" . currentDateTime
 			filename := baseFilename . ".jpg"
 			Sleep, 100
 			Convert(0, filename, 100)
+			; check if file exists
+			if (FileExist(filename) = false) {
+				MsgBox, file saving failed
+			}
 		}
 	}
 
@@ -566,6 +570,7 @@ CaptureScreen(aRect = 0, bCursor = False, saveToFile = 0, uploadWithShareX = 0, 
 	}
 
 	if(ocrScreenshot = 1) {
+		Sleep, 2000
 		fullBaseFilename := screenshotFolder . "\" . baseFilename
 		fullFilename := screenshotFolder . "\" . filename		
 		if (!a_iscompiled) {
@@ -578,7 +583,7 @@ CaptureScreen(aRect = 0, bCursor = False, saveToFile = 0, uploadWithShareX = 0, 
 		clipboard := text
 		FileDelete, %textFilename%
 		if(saveToFile = 0) {
-			Sleep, 1000
+			Sleep, 3000
 			FileDelete, %fullFilename%
 		}
 	}
