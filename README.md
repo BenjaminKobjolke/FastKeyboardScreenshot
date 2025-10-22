@@ -57,6 +57,12 @@ This can also be combined with the "same region" feature:
 
 Press 1,2,3 during screenshot process to scale the final output by 0.75, 0.5 or 0.25
 
+#### Capture mouse cursor
+
+Press m during the screenshot process to toggle mouse cursor capture on/off.
+When enabled, the mouse cursor will be included in the screenshot.
+The screenshot will also be copied to the clipboard as usual.
+
 #### Save screenshot to file
 
 Press f during the screenshot process to save the screenshot to a file.

@@ -25,6 +25,7 @@ saveToFile := 0
 uploadWithShareX := 0
 editWithShareX := 0
 ocrScreenshot := 0
+captureCursor := 0
 
 ; Function to find ShareX.exe on the C drive
 FindShareX()
@@ -141,9 +142,10 @@ return
 		uploadWithShareX := 0
 		editWithShareX := 0
 		ocrScreenshot := 0
+		captureCursor := 0
 		SetTimer, MouseHintTimer, 100
 		ToolTip, move to START position with arrow keys`nthen press space
-	}	
+	}
 return
 
 #If interactiveMode = 1
@@ -255,6 +257,16 @@ f::
 	saveToFile := 1
 return
 
+m::
+	if(captureCursor = 1) {
+		captureCursor := 0
+		ToolTip, Mouse cursor will NOT be captured
+	} else {
+		captureCursor := 1
+		ToolTip, Mouse cursor WILL be captured
+	}
+return
+
 u::
 	ToolTip, Screenshot will be uploaded
 	uploadWithShareX := 1
@@ -352,7 +364,7 @@ CreateScreenshot:
     SoundBeep, 500, 5
 	*/
 
-	CaptureScreen(screenShotStartX ", " screenShotStartY ", " screenShotEndX ", " screenShotEndY, 0, saveToFile, uploadWithShareX, editWithShareX, ocrScreenshot, 0, resizeNextScreenshotBy, screenshotFolder, sharexPath) 
+	CaptureScreen(screenShotStartX ", " screenShotStartY ", " screenShotEndX ", " screenShotEndY, captureCursor, saveToFile, uploadWithShareX, editWithShareX, ocrScreenshot, 0, resizeNextScreenshotBy, screenshotFolder, sharexPath) 
     ;ToolTip, Mouse region capture to clipboard
 	Sleep, 1000
 	ToolTip,
@@ -507,6 +519,7 @@ CaptureScreen(aRect = 0, bCursor = False, saveToFile = 0, uploadWithShareX = 0, 
 	
 	if(saveToFile = 1 || uploadWithShareX = 1 || editWithShareX = 1 || ocrScreenshot = 1) {
 		;Convert(hBM, "c:\test.bmp", nQuality), DllCall("DeleteObject", "ptr", hBM)
+		Sleep, 200	
 		FormatTime, currentDateTime, , yyyy_MM_dd_HH_mm_ss
 		baseFilename := currentDateTime
 		filename := baseFilename . ".jpg"		
@@ -554,6 +567,7 @@ CaptureScreen(aRect = 0, bCursor = False, saveToFile = 0, uploadWithShareX = 0, 
 	}
 
 	if(editWithShareX = 1) {
+		Sleep, 200
 		fullFilename := screenshotFolder . "\" . filename
 		
 		; Check if ShareX was found
