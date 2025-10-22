@@ -63,6 +63,13 @@ Press m during the screenshot process to toggle mouse cursor capture on/off.
 When enabled, the mouse cursor will be included in the screenshot.
 The screenshot will also be copied to the clipboard as usual.
 
+#### Show screenshot in window
+
+Press w during the screenshot process to toggle window preview on/off.
+When enabled, the screenshot will be displayed in a preview window after capture.
+Press ESC or click the X button to close the preview window.
+The screenshot will also be copied to the clipboard as usual.
+
 #### Save screenshot to file
 
 Press f during the screenshot process to save the screenshot to a file.

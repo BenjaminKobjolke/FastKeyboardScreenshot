@@ -26,6 +26,16 @@ uploadWithShareX := 0
 editWithShareX := 0
 ocrScreenshot := 0
 captureCursor := 0
+showWindow := 0
+
+; Global variables for preview window with scaled image
+previewImagePath := ""
+previewImageWidth := 0
+previewImageHeight := 0
+previewPToken := 0
+previewPBitmap := 0
+previewHwnd := 0
+previewTempFile := ""
 
 ; Function to find ShareX.exe on the C drive
 FindShareX()
@@ -143,6 +153,7 @@ return
 		editWithShareX := 0
 		ocrScreenshot := 0
 		captureCursor := 0
+		showWindow := 0
 		SetTimer, MouseHintTimer, 100
 		ToolTip, move to START position with arrow keys`nthen press space
 	}
@@ -284,6 +295,16 @@ o::
 	ocrScreenshot := 1
 return
 
+w::
+	if(showWindow = 1) {
+		showWindow := 0
+		ToolTip, Screenshot will NOT be shown in window
+	} else {
+		showWindow := 1
+		ToolTip, Screenshot WILL be shown in window
+	}
+return
+
 GetStartPosition:
 	state := 2
 	MouseGetPos, screenShotStartX, screenShotStartY
@@ -364,7 +385,7 @@ CreateScreenshot:
     SoundBeep, 500, 5
 	*/
 
-	CaptureScreen(screenShotStartX ", " screenShotStartY ", " screenShotEndX ", " screenShotEndY, captureCursor, saveToFile, uploadWithShareX, editWithShareX, ocrScreenshot, 0, resizeNextScreenshotBy, screenshotFolder, sharexPath) 
+	CaptureScreen(screenShotStartX ", " screenShotStartY ", " screenShotEndX ", " screenShotEndY, captureCursor, saveToFile, uploadWithShareX, editWithShareX, ocrScreenshot, 0, resizeNextScreenshotBy, screenshotFolder, sharexPath, showWindow) 
     ;ToolTip, Mouse region capture to clipboard
 	Sleep, 1000
 	ToolTip,
@@ -436,8 +457,11 @@ DestroyGuis() {
 ; Convert("C:\image.bmp", "C:\image.jpg", 95)
 ; Convert(0, "C:\clip.png")   ; Save the bitmap in the clipboard to sFileTo if sFileFr is "" or 0.
 
-CaptureScreen(aRect = 0, bCursor = False, saveToFile = 0, uploadWithShareX = 0, editWithShareX = 0, ocrScreenshot = 0, nQuality = "", resizeBy = 1, screenshotFolder = "", sharexPath = "")
+CaptureScreen(aRect = 0, bCursor = False, saveToFile = 0, uploadWithShareX = 0, editWithShareX = 0, ocrScreenshot = 0, nQuality = "", resizeBy = 1, screenshotFolder = "", sharexPath = "", showWindow = 0)
 {
+    ; Declare temp file variable at function scope
+    tempFileForPreview := ""
+
     ; Add Gdip startup
     If !pToken := Gdip_Startup()
     {
@@ -515,8 +539,26 @@ CaptureScreen(aRect = 0, bCursor = False, saveToFile = 0, uploadWithShareX = 0, 
 		Gdip_DisposeImage(pBitmapResized)
 	}
 
+	; Create a copy of the bitmap for preview window before SetClipboardData deletes it
+	if(showWindow = 1) {
+		; Use GDI+ to create a copy of the HBITMAP
+		pBitmapForPreview := Gdip_CreateBitmapFromHBITMAP(hBM)
+		hBMCopy := Gdip_CreateHBITMAPFromBitmap(pBitmapForPreview)
+		Gdip_DisposeImage(pBitmapForPreview)
+
+		; Create unique temp filename with timestamp
+		FormatTime, timestamp, , yyyyMMdd_HHmmss
+		tempFileForPreview := A_Temp . "\FastKeyboardScreenshot_" . timestamp . ".bmp"
+
+		; Save to temp file using the existing SaveHBITMAPToFile function
+		SaveHBITMAPToFile(hBMCopy, tempFileForPreview)
+
+		; Delete the copy bitmap handle
+		DllCall("DeleteObject", "ptr", hBMCopy)
+	}
+
 	SetClipboardData(hBM)
-	
+
 	if(saveToFile = 1 || uploadWithShareX = 1 || editWithShareX = 1 || ocrScreenshot = 1) {
 		;Convert(hBM, "c:\test.bmp", nQuality), DllCall("DeleteObject", "ptr", hBM)
 		Sleep, 200	
@@ -604,7 +646,15 @@ CaptureScreen(aRect = 0, bCursor = False, saveToFile = 0, uploadWithShareX = 0, 
 
 	DllCall("DeleteObject", "ptr", hBM)
     ; Add Gdip shutdown at the end of the function
-    Gdip_Shutdown(pToken)	
+    Gdip_Shutdown(pToken)
+
+	; Show window with image if requested (after Gdip_Shutdown)
+	if(showWindow = 1 && FileExist(tempFileForPreview)) {
+		ShowImageWindow(tempFileForPreview, nW, nH, resizeBy)
+	}
+	else if(showWindow = 1 && !FileExist(tempFileForPreview)) {
+		MsgBox, 16, Error, Failed to create preview image file.
+	}
 }
 
 
@@ -757,4 +807,219 @@ SetClipboardData(hBitmap)
 	DllCall("SetClipboardData", "Uint", 8, "ptr", hDIB)
 	DllCall("CloseClipboard")
 }
+
+ImageViewPaint(wParam, lParam, msg, hwnd)
+{
+	global previewHwnd, previewImageWidth, previewImageHeight, previewPBitmap
+
+	; Only handle paint for our preview window
+	if (hwnd != previewHwnd || !previewPBitmap)
+		return
+
+	; Begin paint
+	VarSetCapacity(ps, 64, 0)
+	hdc := DllCall("BeginPaint", "ptr", hwnd, "ptr", &ps, "ptr")
+
+	; Get client area dimensions
+	VarSetCapacity(rect, 16, 0)
+	DllCall("GetClientRect", "ptr", hwnd, "ptr", &rect)
+	width := NumGet(rect, 8, "int")
+	height := NumGet(rect, 12, "int")
+
+	; Leave space for text at bottom
+	availHeight := height - 30
+
+	; Create GDI+ graphics from the paint DC
+	pGraphics := Gdip_GraphicsFromHDC(hdc)
+	Gdip_SetInterpolationMode(pGraphics, 7) ; High quality
+
+	; Clear background
+	Gdip_GraphicsClear(pGraphics, 0xFFFFFFFF)
+
+	; Calculate aspect ratio
+	imageAspect := previewImageWidth / previewImageHeight
+	availAspect := width / availHeight
+
+	; Calculate scaled dimensions to fit while maintaining aspect ratio
+	if (imageAspect > availAspect) {
+		; Image is wider - fit to width
+		scaledWidth := width
+		scaledHeight := width / imageAspect
+		offsetX := 0
+		offsetY := (availHeight - scaledHeight) / 2
+	} else {
+		; Image is taller - fit to height
+		scaledHeight := availHeight
+		scaledWidth := availHeight * imageAspect
+		offsetX := (width - scaledWidth) / 2
+		offsetY := 0
+	}
+
+	; Round to integers for stable rendering
+	scaledWidth := Floor(scaledWidth)
+	scaledHeight := Floor(scaledHeight)
+	offsetX := Floor(offsetX)
+	offsetY := Floor(offsetY)
+
+	; Draw the scaled image
+	Gdip_DrawImage(pGraphics, previewPBitmap, offsetX, offsetY, scaledWidth, scaledHeight)
+
+	; Cleanup
+	Gdip_DeleteGraphics(pGraphics)
+	DllCall("EndPaint", "ptr", hwnd, "ptr", &ps)
+}
+
+ShowImageWindow(tempFile, nW, nH, resizeBy = 1)
+{
+	global previewImagePath, previewImageWidth, previewImageHeight
+	global previewPToken, previewPBitmap, previewHwnd, previewTempFile
+
+	; Close existing preview window if already open
+	if (previewHwnd) {
+		; Destroy the window first
+		Gui, ImageView:Destroy
+
+		; Unregister WM_PAINT handler
+		OnMessage(0x000F, "ImageViewPaint", 0)
+
+		; Cleanup GDI+ resources
+		if (previewPBitmap)
+			Gdip_DisposeImage(previewPBitmap)
+		if (previewPToken)
+			Gdip_Shutdown(previewPToken)
+
+		; Delete old temp file
+		if (previewTempFile && FileExist(previewTempFile))
+			FileDelete, %previewTempFile%
+
+		; Reset variables
+		previewPBitmap := 0
+		previewPToken := 0
+		previewHwnd := 0
+		previewTempFile := ""
+
+		; Small delay to ensure window is fully closed
+		Sleep, 50
+	}
+
+	; Store image path and temp file globally
+	previewImagePath := tempFile
+	previewTempFile := tempFile
+	previewImageWidth := nW // resizeBy
+	previewImageHeight := nH // resizeBy
+
+	; Always load saved window size and position from settings
+	; Use image dimensions as fallback if no saved settings
+	IniRead, savedWidth, %A_ScriptDir%\settings.ini, PreviewWindow, Width, %previewImageWidth%
+	IniRead, savedHeight, %A_ScriptDir%\settings.ini, PreviewWindow, Height, %previewImageHeight%
+	IniRead, savedX, %A_ScriptDir%\settings.ini, PreviewWindow, X, Center
+	IniRead, savedY, %A_ScriptDir%\settings.ini, PreviewWindow, Y, Center
+
+	; Initialize GDI+ for preview window
+	If !previewPToken := Gdip_Startup()
+	{
+		MsgBox, 48, Error!, Gdiplus failed to start for preview window
+		return
+	}
+
+	; Load the bitmap from file
+	previewPBitmap := Gdip_CreateBitmapFromFile(tempFile)
+
+	; Create GUI to display the image (no controls, we draw directly)
+	Gui, ImageView:Destroy
+	Gui, ImageView:+Resize +AlwaysOnTop +HWNDpreviewHwnd
+	Gui, ImageView:Color, White
+
+	; Register WM_PAINT handler
+	OnMessage(0x000F, "ImageViewPaint")
+
+	; Show window at saved position or centered
+	if (savedX = "Center" || savedY = "Center")
+		Gui, ImageView:Show, w%savedWidth% h%savedHeight%, Screenshot Preview
+	else
+		Gui, ImageView:Show, x%savedX% y%savedY% w%savedWidth% h%savedHeight%, Screenshot Preview
+
+	; Force initial paint
+	DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
+
+	return
+}
+
+; GUI resize handler to trigger repaint when window is resized
+ImageViewGuiSize:
+	global previewHwnd
+
+	if (A_EventInfo = 1)  ; Window minimized
+		return
+
+	; Invalidate the window to trigger WM_PAINT
+	DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
+return
+
+; GUI close handler for when user clicks X button
+ImageViewGuiClose:
+	global previewPBitmap, previewPToken, previewHwnd, previewTempFile
+
+	; Save window position and size
+	WinGetPos, winX, winY, winWidth, winHeight, Screenshot Preview
+	IniWrite, %winWidth%, %A_ScriptDir%\settings.ini, PreviewWindow, Width
+	IniWrite, %winHeight%, %A_ScriptDir%\settings.ini, PreviewWindow, Height
+	IniWrite, %winX%, %A_ScriptDir%\settings.ini, PreviewWindow, X
+	IniWrite, %winY%, %A_ScriptDir%\settings.ini, PreviewWindow, Y
+
+	; Unregister WM_PAINT handler
+	OnMessage(0x000F, "ImageViewPaint", 0)
+
+	; Cleanup GDI+ resources
+	if (previewPBitmap)
+		Gdip_DisposeImage(previewPBitmap)
+	if (previewPToken)
+		Gdip_Shutdown(previewPToken)
+
+	; Clean up temp file
+	if (previewTempFile && FileExist(previewTempFile))
+		FileDelete, %previewTempFile%
+
+	previewPBitmap := 0
+	previewPToken := 0
+	previewHwnd := 0
+	previewTempFile := ""
+
+	Gui, ImageView:Destroy
+return
+
+; Hotkey to close the image window
+#If WinActive("Screenshot Preview")
+Esc::
+	global previewPBitmap, previewPToken, previewHwnd, previewTempFile
+
+	; Save window position and size
+	WinGetPos, winX, winY, winWidth, winHeight, Screenshot Preview
+	IniWrite, %winWidth%, %A_ScriptDir%\settings.ini, PreviewWindow, Width
+	IniWrite, %winHeight%, %A_ScriptDir%\settings.ini, PreviewWindow, Height
+	IniWrite, %winX%, %A_ScriptDir%\settings.ini, PreviewWindow, X
+	IniWrite, %winY%, %A_ScriptDir%\settings.ini, PreviewWindow, Y
+
+	; Unregister WM_PAINT handler
+	OnMessage(0x000F, "ImageViewPaint", 0)
+
+	; Cleanup GDI+ resources
+	if (previewPBitmap)
+		Gdip_DisposeImage(previewPBitmap)
+	if (previewPToken)
+		Gdip_Shutdown(previewPToken)
+
+	; Clean up temp file
+	if (previewTempFile && FileExist(previewTempFile))
+		FileDelete, %previewTempFile%
+
+	previewPBitmap := 0
+	previewPToken := 0
+	previewHwnd := 0
+	previewTempFile := ""
+
+	Gui, ImageView:Destroy
+return
+#If
+
 ; ===== PRINTSCREEN : END SCRIPT ===========================================================================
