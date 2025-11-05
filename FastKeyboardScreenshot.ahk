@@ -28,6 +28,9 @@ ocrScreenshot := 0
 captureCursor := 0
 showWindow := 0
 
+; Register message handler for resolution changes
+OnMessage(0x007E, "HandleResolutionChange")
+
 ; Global variables for preview window with scaled image
 previewImagePath := ""
 previewImageWidth := 0
@@ -1020,6 +1023,49 @@ Esc::
 
 	Gui, ImageView:Destroy
 return
+
+; Hotkey to save the screenshot from preview window
+f::
+	global previewTempFile, screenshotFolder
+
+	; Check if we have a temp file to save
+	if (!previewTempFile || !FileExist(previewTempFile)) {
+		ToolTip, Error: No screenshot to save
+		Sleep, 2000
+		ToolTip,
+		return
+	}
+
+	; Create screenshots folder if it doesn't exist
+	if (!FileExist(screenshotFolder)) {
+		FileCreateDir, %screenshotFolder%
+	}
+
+	; Generate timestamp-based filename
+	FormatTime, currentDateTime, , yyyy_MM_dd_HH_mm_ss
+	filename := currentDateTime . ".bmp"
+	fullFilePath := screenshotFolder . "\" . filename
+
+	; Copy the temp file to the screenshots folder
+	FileCopy, %previewTempFile%, %fullFilePath%, 1
+
+	; Show feedback to user
+	if (ErrorLevel = 0) {
+		ToolTip, Screenshot saved to: %fullFilePath%
+		Sleep, 2000
+		ToolTip,
+	} else {
+		ToolTip, Error: Failed to save screenshot
+		Sleep, 2000
+		ToolTip,
+	}
+return
 #If
+
+; Handler for resolution changes - reloads the script to reinitialize all coordinates
+HandleResolutionChange() {
+	Reload
+	return
+}
 
 ; ===== PRINTSCREEN : END SCRIPT ===========================================================================
