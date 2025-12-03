@@ -46,7 +46,7 @@ This can also be combined with the "same region" feature:
 
 - Press Alt Shift Q to start
 - Press D to enable delay
-- Press F1 to take a screenshot of the same region as last time
+- Press r to take a screenshot of the same region as last time
 - The screenshot will be automatically taken after 5 seconds
 
 #### Screenshot scale

@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push)",
+      "Bash(if not exist \"D:\\GIT\\BenjaminKobjolke\\FastTools\\FastKeyboardScreenshot\\bin\" xcopy \"D:\\GIT\\BenjaminKobjolke\\FastTools\\FastKeyboardScreenshot\\github_modules\\Vis2\\bin\" \"D:\\GIT\\BenjaminKobjolke\\FastTools\\FastKeyboardScreenshot\\bin\" /E /I /H /Y)",
+      "Bash(powershell -Command \"Remove-Item ''D:\\GIT\\BenjaminKobjolke\\FastTools\\FastKeyboardScreenshot\\bin\\bin'' -Force\")",
+      "Bash(powershell:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
