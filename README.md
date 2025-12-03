@@ -70,6 +70,13 @@ When enabled, the screenshot will be displayed in a preview window after capture
 Press ESC or click the X button to close the preview window.
 The screenshot will also be copied to the clipboard as usual.
 
+#### Capture active window
+
+Press a during the screenshot process to capture the active window immediately.
+This skips the manual region selection and captures the entire active window.
+All modifiers (resize, save to file, cursor capture, etc.) are respected.
+The screenshot will also be copied to the clipboard as usual.
+
 #### Save screenshot to file
 
 Press f during the screenshot process to save the screenshot to a file.

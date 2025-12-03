@@ -308,6 +308,16 @@ w::
 	}
 return
 
+; capture active window
+a::
+	ToolTip, Capturing active window
+	interactiveMode := 0
+	SetTimer, MouseHintTimer, Off
+	DestroyGuis()
+	CaptureScreen(1, captureCursor, saveToFile, uploadWithShareX, editWithShareX, ocrScreenshot, 0, resizeNextScreenshotBy, screenshotFolder, sharexPath, showWindow)
+	GoSub, ScreenshotDone
+return
+
 GetStartPosition:
 	state := 2
 	MouseGetPos, screenShotStartX, screenShotStartY
