@@ -24,8 +24,6 @@ Hold down shift while moving the cursor to decrease the speed.
 
 ## Updates
 
-### 2022
-
 #### Screenshot the same region again
 
 after you created at least one screenshot you can do the following
@@ -35,8 +33,6 @@ after you created at least one screenshot you can do the following
 - press r
 
 Your screenshot will be copied to the clipboard (using the same region as your last screenshot)
-
-### 2023
 
 #### Screenshot with delay (useful for dropdown menus)
 
