@@ -231,15 +231,17 @@ r::
 	}
 
 	ToolTip, will use the same region again
-	Sleep, 1000	
+	Sleep, 1000
 
 	interactiveMode := 0
+	SetTimer, MouseHintTimer, Off
+	DestroyGuis()
 	if(delayedScreenShot = 1) {
 		SetTimer, ScreenshotTimer, 1000
 	} else {
 		GoSub, CreateScreenshot
 		GoSub, ScreenshotDone
-	}	
+	}
 Return
 
 Space::
@@ -316,6 +318,11 @@ a::
 	DestroyGuis()
 	CaptureScreen(1, captureCursor, saveToFile, uploadWithShareX, editWithShareX, ocrScreenshot, 0, resizeNextScreenshotBy, screenshotFolder, sharexPath, showWindow)
 	GoSub, ScreenshotDone
+return
+
+; show help window
+F1::
+	GoSub, ShowHelpWindow
 return
 
 GetStartPosition:
@@ -1071,6 +1078,40 @@ f::
 	}
 return
 #If
+
+; Show help window with keyboard shortcuts
+ShowHelpWindow:
+	Gui, HelpWindow:Destroy
+	Gui, HelpWindow:+AlwaysOnTop +ToolWindow
+	Gui, HelpWindow:Font, s10, Consolas
+	Gui, HelpWindow:Add, Text, , === NAVIGATION ===
+	Gui, HelpWindow:Add, Text, , Arrow keys / hjkl    Move cursor
+	Gui, HelpWindow:Add, Text, , Shift + above        Move slower
+	Gui, HelpWindow:Add, Text, ,
+	Gui, HelpWindow:Add, Text, , === ACTIONS ===
+	Gui, HelpWindow:Add, Text, , Space                Confirm position
+	Gui, HelpWindow:Add, Text, , a                    Capture active window
+	Gui, HelpWindow:Add, Text, , r                    Same region again
+	Gui, HelpWindow:Add, Text, , Alt+Shift+Q          Cancel
+	Gui, HelpWindow:Add, Text, ,
+	Gui, HelpWindow:Add, Text, , === MODIFIERS ===
+	Gui, HelpWindow:Add, Text, , d                    Delayed screenshot (5s)
+	Gui, HelpWindow:Add, Text, , 1 / 2 / 3            Resize 75`% / 50`% / 25`%
+	Gui, HelpWindow:Add, Text, , f                    Save to file
+	Gui, HelpWindow:Add, Text, , m                    Capture mouse cursor
+	Gui, HelpWindow:Add, Text, , w                    Show in window
+	Gui, HelpWindow:Add, Text, , u                    Upload with ShareX
+	Gui, HelpWindow:Add, Text, , e                    Edit with ShareX
+	Gui, HelpWindow:Add, Text, , o                    OCR screenshot
+	Gui, HelpWindow:Add, Text, ,
+	Gui, HelpWindow:Add, Text, , Press F1 or Esc to close
+	Gui, HelpWindow:Show, , Keyboard Shortcuts
+return
+
+HelpWindowGuiClose:
+HelpWindowGuiEscape:
+	Gui, HelpWindow:Destroy
+return
 
 ; Handler for resolution changes - reloads the script to reinitialize all coordinates
 HandleResolutionChange() {

@@ -77,6 +77,11 @@ This skips the manual region selection and captures the entire active window.
 All modifiers (resize, save to file, cursor capture, etc.) are respected.
 The screenshot will also be copied to the clipboard as usual.
 
+#### Show keyboard shortcuts
+
+Press F1 during the screenshot process to display a help window with all available keyboard shortcuts.
+Press F1 again or Esc to close the help window.
+
 #### Save screenshot to file
 
 Press f during the screenshot process to save the screenshot to a file.
