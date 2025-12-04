@@ -13,10 +13,14 @@
 ; 5) aRect can be comma delimited sequence of coordinates.
 ;-----------------------------------------------------------------------------------------------------------
 
-CaptureScreen(aRect = 0, bCursor = False, saveToFile = 0, uploadWithShareX = 0, editWithShareX = 0, ocrScreenshot = 0, nQuality = "", resizeBy = 1, unusedFolder = "", unusedPath = "", showWindow = 0)
+CaptureScreen(aRect = 0, bCursor = False, saveToFile = 0, uploadAfterCapture = 0, editWithShareX = 0, ocrScreenshot = 0, nQuality = "", resizeBy = 1, unusedFolder = "", unusedPath = "", showWindow = 0)
 {
     ; Access global variables directly
-    global screenshotFolder, sharexPath
+    global screenshotFolder, sharexPath, useInBuildFTP, ftpHost, ftpUser, ftpPass, ftpPath, ftpUrl
+
+    ; Clear any tooltip before capturing
+    ToolTip,
+    Sleep, 100
 
     ; Declare temp file variable at function scope
     tempFileForPreview := ""
@@ -118,7 +122,7 @@ CaptureScreen(aRect = 0, bCursor = False, saveToFile = 0, uploadWithShareX = 0, 
 
 	SetClipboardData(hBM)
 
-	if(saveToFile = 1 || uploadWithShareX = 1 || editWithShareX = 1 || ocrScreenshot = 1) {
+	if(saveToFile = 1 || uploadAfterCapture = 1 || editWithShareX = 1 || ocrScreenshot = 1) {
 		Sleep, 200
 		FormatTime, currentDateTime, , yyyy_MM_dd_HH_mm_ss
 		baseFilename := currentDateTime
@@ -126,41 +130,45 @@ CaptureScreen(aRect = 0, bCursor = False, saveToFile = 0, uploadWithShareX = 0, 
 		Convert(0, filename, "", screenshotFolder)
 	}
 
-    if(uploadWithShareX = 1) {
+    if(uploadAfterCapture = 1) {
 		fullFilename := screenshotFolder . "\" . filename
 
-		; Check if ShareX was found
-		if (sharexPath = "") {
-			MsgBox, 16, Error, ShareX not found. Cannot upload screenshot.
-		} else {
-			Sleep, 1000
-			RunWait, %sharexPath% "%fullFilename%"
-			baseFilename := A_ScriptDir . "\screenshots\" . currentDateTime
-			filename := baseFilename . ".jpg"
-			Sleep, 100
-			Convert(0, filename, 100)
-			; check if file exists
-			if (FileExist(filename) = false) {
-				MsgBox, file saving failed
-			}
-		}
-	}
+		if(useInBuildFTP = 1) {
+			; Use built-in FTP upload
+			ToolTip, Uploading screenshot...
 
-    if(uploadWithShareX = 1) {
-		; Check if ShareX was found
-		if (sharexPath = "") {
-			MsgBox, 16, Error, ShareX not found. Cannot upload screenshot.
-		} else {
-			ToolTip, Uploading screenshot with ShareX
-			Sleep, 100
-			; copy sharex path and filename to clipboard
-			complete_path = %sharexPath% "%filename%"
-			clipboard := complete_path
-			Sleep, 100
-			RunWait, %sharexPath% "%filename%"
+			; Remote filename is path + filename
+			remoteFile := ftpPath . filename
+
+			; Upload via FTP
+			if(FTPUpload(ftpHost, ftpUser, ftpPass, fullFilename, remoteFile)) {
+				; Copy URL to clipboard
+				finalUrl := ftpUrl . ftpPath . filename
+				clipboard := finalUrl
+				ToolTip, Upload complete!`n%finalUrl%
+				Sleep, 2000
+				ToolTip
+			} else {
+				ToolTip
+				MsgBox, 16, Error, FTP upload failed.`n`nHost: %ftpHost%`nFile: %fullFilename%`nRemote: %remoteFile%
+			}
+
+			; Delete file if not saving
 			if(saveToFile = 0) {
-				Sleep, 1000
 				FileDelete, %fullFilename%
+			}
+		} else {
+			; Use ShareX
+			if (sharexPath = "") {
+				MsgBox, 16, Error, ShareX not found. Cannot upload screenshot.
+			} else {
+				ToolTip, Uploading screenshot with ShareX
+				Sleep, 100
+				RunWait, %sharexPath% "%fullFilename%"
+				if(saveToFile = 0) {
+					Sleep, 1000
+					FileDelete, %fullFilename%
+				}
 			}
 		}
 	}

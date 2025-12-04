@@ -86,12 +86,19 @@ You can change this location in the settings.ini file by modifying the Screensho
 See settings_example.ini for an example configuration.
 The screenshot will also be copied to the clipboard as usual.
 
-#### Upload with sharex
+#### Upload screenshot
 
-Press u during the screenshot process to upload the screenshot to imgur using sharex.
-It will also be copied to the clipboard as usual.
-Note that you need to have sharex installed and configured for this to work.
-Currently te path is fixed to `C:\Program Files\ShareX\ShareX.exe`
+Press u during the screenshot process to upload the screenshot.
+The screenshot URL will be copied to the clipboard after upload.
+
+**Built-in FTP upload:**
+Set `UseInBuildFTP=1` in settings.ini and configure your FTP server details.
+A tooltip will show upload progress and the final URL.
+See settings_example.ini for configuration options.
+
+**ShareX upload:**
+Set `UseInBuildFTP=0` (default) to use ShareX for uploading.
+Note that you need to have ShareX installed and configured for this to work.
 
 #### edit with sharex
 

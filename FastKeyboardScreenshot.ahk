@@ -8,6 +8,7 @@
 #Include %A_ScriptDir%\lib\utils.ahk
 #Include %A_ScriptDir%\lib\gui.ahk
 #Include %A_ScriptDir%\lib\capture.ahk
+#Include %A_ScriptDir%\lib\FTP_Upload.ahk
 
 CoordMode, Mouse, Screen
 
@@ -28,7 +29,7 @@ screenShotEndX := -1
 screenShotEndY := -1
 resizeNextScreenshotBy := 1
 saveToFile := 0
-uploadWithShareX := 0
+uploadAfterCapture := 0
 editWithShareX := 0
 ocrScreenshot := 0
 captureCursor := 0

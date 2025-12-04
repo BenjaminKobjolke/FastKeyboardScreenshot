@@ -83,7 +83,6 @@ return
 
 CreateScreenshot:
 	global screenshotFolder, sharexPath
-	ToolTip,
 
     If (screenShotStartX > screenShotEndX)
     {
@@ -98,7 +97,7 @@ CreateScreenshot:
 		screenShotEndY := helper
     }
 
-	CaptureScreen(screenShotStartX ", " screenShotStartY ", " screenShotEndX ", " screenShotEndY, captureCursor, saveToFile, uploadWithShareX, editWithShareX, ocrScreenshot, 0, resizeNextScreenshotBy, screenshotFolder, sharexPath, showWindow)
+	CaptureScreen(screenShotStartX ", " screenShotStartY ", " screenShotEndX ", " screenShotEndY, captureCursor, saveToFile, uploadAfterCapture, editWithShareX, ocrScreenshot, 0, resizeNextScreenshotBy, screenshotFolder, sharexPath, showWindow)
 	Sleep, 1000
 	ToolTip,
 Return

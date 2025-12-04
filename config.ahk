@@ -12,3 +12,11 @@ SetBatchLines -1
 ; Read settings from settings.ini
 IniRead, screenshotFolder, %A_ScriptDir%\settings.ini, General, ScreenshotFolder, %A_ScriptDir%\screenshots
 
+; Read FTP settings
+IniRead, useInBuildFTP, %A_ScriptDir%\settings.ini, FTP, UseInBuildFTP, 0
+IniRead, ftpHost, %A_ScriptDir%\settings.ini, FTP, host,
+IniRead, ftpUser, %A_ScriptDir%\settings.ini, FTP, user,
+IniRead, ftpPass, %A_ScriptDir%\settings.ini, FTP, pass,
+IniRead, ftpPath, %A_ScriptDir%\settings.ini, FTP, path,
+IniRead, ftpUrl, %A_ScriptDir%\settings.ini, FTP, url,
+

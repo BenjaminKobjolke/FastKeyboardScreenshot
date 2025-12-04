@@ -21,7 +21,7 @@ IsInteractiveMode() {
 		delayedScreenShot := 0
 		resizeNextScreenshotBy := 1
 		saveToFile := 0
-		uploadWithShareX := 0
+		uploadAfterCapture := 0
 		editWithShareX := 0
 		ocrScreenshot := 0
 		captureCursor := 0
@@ -162,7 +162,7 @@ return
 ; Upload with ShareX
 u::
 	ToolTip, Screenshot will be uploaded
-	uploadWithShareX := 1
+	uploadAfterCapture := 1
 	editWithShareX := 0
 return
 
@@ -170,7 +170,7 @@ return
 e::
 	ToolTip, Screenshot will be edited
 	editWithShareX := 1
-	uploadWithShareX := 0
+	uploadAfterCapture := 0
 return
 
 ; OCR screenshot
@@ -197,7 +197,7 @@ a::
 	interactiveMode := 0
 	SetTimer, MouseHintTimer, Off
 	DestroyGuis()
-	CaptureScreen(1, captureCursor, saveToFile, uploadWithShareX, editWithShareX, ocrScreenshot, 0, resizeNextScreenshotBy, screenshotFolder, sharexPath, showWindow)
+	CaptureScreen(1, captureCursor, saveToFile, uploadAfterCapture, editWithShareX, ocrScreenshot, 0, resizeNextScreenshotBy, screenshotFolder, sharexPath, showWindow)
 	GoSub, ScreenshotDone
 return
 
