@@ -51,6 +51,13 @@ previewPBitmap := 0
 previewHwnd := 0
 previewTempFile := ""
 
+; Global variables for text preview window
+textPreviewHwnd := 0
+
+; Global variables for action tooltips (FTP upload and OCR)
+lastUploadedUrl := ""
+pendingOcrText := ""
+
 ; Initialize ShareX path from settings or by searching
 IniRead, sharexPath, %A_ScriptDir%\settings.ini, General, ShareXPath, NOT_FOUND
 IniRead, sharexNotFound, %A_ScriptDir%\settings.ini, General, ShareXNotFound, 0
@@ -101,22 +108,31 @@ Exit:
 	ExitApp
 return
 
-; FTP upload tooltip hotkeys
-OpenLastUploadedUrl:
-    global lastUploadedUrl
+; Action tooltip hotkeys (for FTP upload and OCR)
+OpenLastUrl:
+    global lastUploadedUrl, pendingOcrText
     if(lastUploadedUrl != "") {
         Run, %lastUploadedUrl%
+    } else if(pendingOcrText != "") {
+        ; Create temp file on-demand and open in default editor
+        FormatTime, ts, , yyyy_MM_dd_HH_mm_ss
+        tempTxt := A_Temp . "\ocr_" . ts . ".txt"
+        FileAppend, %pendingOcrText%, %tempTxt%
+        Run, %tempTxt%
+        pendingOcrText := ""
     }
-    GoSub, ClearUploadTooltip
+    GoSub, ClearActionTooltip
 return
 
-CancelUploadTooltip:
-    GoSub, ClearUploadTooltip
+CancelActionTooltip:
+    GoSub, ClearActionTooltip
 return
 
-ClearUploadTooltip:
+ClearActionTooltip:
+    global pendingOcrText
     ToolTip
-    Hotkey, o, OpenLastUploadedUrl, Off
-    Hotkey, Escape, CancelUploadTooltip, Off
-    SetTimer, ClearUploadTooltip, Off
+    Hotkey, o, OpenLastUrl, Off
+    Hotkey, Escape, CancelActionTooltip, Off
+    SetTimer, ClearActionTooltip, Off
+    pendingOcrText := ""  ; Clear pending text if user dismissed
 return

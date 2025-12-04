@@ -1,5 +1,65 @@
 ; preview_window.ahk - Screenshot preview window functionality
 
+; ============================================
+; Text Preview Window (for OCR output)
+; ============================================
+
+ShowTextWindow(text)
+{
+    global textPreviewHwnd, TextContent
+
+    ; Close existing text preview if open
+    if (textPreviewHwnd) {
+        Gui, TextPreview:Destroy
+        textPreviewHwnd := 0
+    }
+
+    ; Load saved window size/position and font size
+    IniRead, savedWidth, %A_ScriptDir%\settings.ini, TextPreviewWindow, Width, 600
+    IniRead, savedHeight, %A_ScriptDir%\settings.ini, TextPreviewWindow, Height, 400
+    IniRead, savedX, %A_ScriptDir%\settings.ini, TextPreviewWindow, X, Center
+    IniRead, savedY, %A_ScriptDir%\settings.ini, TextPreviewWindow, Y, Center
+    IniRead, fontSize, %A_ScriptDir%\settings.ini, TextPreviewWindow, FontSize, 14
+
+    ; Create text preview GUI with dark theme
+    Gui, TextPreview:Destroy
+    Gui, TextPreview:+Resize +AlwaysOnTop +HWNDtextPreviewHwnd
+    Gui, TextPreview:Color, 1e1e1e, 2d2d2d
+    Gui, TextPreview:Margin, 10, 10
+    Gui, TextPreview:Font, s%fontSize% cE0E0E0, Consolas
+    Gui, TextPreview:Add, Edit, vTextContent w580 h360 ReadOnly Background2d2d2d, %text%
+
+    ; Show window
+    if (savedX = "Center" || savedY = "Center")
+        Gui, TextPreview:Show, w%savedWidth% h%savedHeight%, OCR Text Preview
+    else
+        Gui, TextPreview:Show, x%savedX% y%savedY% w%savedWidth% h%savedHeight%, OCR Text Preview
+
+    return
+}
+
+TextPreviewGuiClose:
+TextPreviewGuiEscape:
+    global textPreviewHwnd
+    ; Save window position
+    WinGetPos, winX, winY, winWidth, winHeight, OCR Text Preview
+    IniWrite, %winWidth%, %A_ScriptDir%\settings.ini, TextPreviewWindow, Width
+    IniWrite, %winHeight%, %A_ScriptDir%\settings.ini, TextPreviewWindow, Height
+    IniWrite, %winX%, %A_ScriptDir%\settings.ini, TextPreviewWindow, X
+    IniWrite, %winY%, %A_ScriptDir%\settings.ini, TextPreviewWindow, Y
+    Gui, TextPreview:Destroy
+    textPreviewHwnd := 0
+return
+
+TextPreviewGuiSize:
+    ; Resize the Edit control with the window
+    GuiControl, Move, TextContent, % "w" . (A_GuiWidth - 20) . " h" . (A_GuiHeight - 20)
+return
+
+; ============================================
+; Image Preview Window
+; ============================================
+
 ImageViewPaint(wParam, lParam, msg, hwnd)
 {
 	global previewHwnd, previewImageWidth, previewImageHeight, previewPBitmap
@@ -25,8 +85,8 @@ ImageViewPaint(wParam, lParam, msg, hwnd)
 	pGraphics := Gdip_GraphicsFromHDC(hdc)
 	Gdip_SetInterpolationMode(pGraphics, 7) ; High quality
 
-	; Clear background
-	Gdip_GraphicsClear(pGraphics, 0xFFFFFFFF)
+	; Clear background with dark color
+	Gdip_GraphicsClear(pGraphics, 0xFF1e1e1e)
 
 	; Calculate aspect ratio
 	imageAspect := previewImageWidth / previewImageHeight
@@ -117,10 +177,10 @@ ShowImageWindow(tempFile, nW, nH, resizeBy = 1)
 	; Load the bitmap from file
 	previewPBitmap := Gdip_CreateBitmapFromFile(tempFile)
 
-	; Create GUI to display the image (no controls, we draw directly)
+	; Create GUI to display the image with dark theme
 	Gui, ImageView:Destroy
 	Gui, ImageView:+Resize +AlwaysOnTop +HWNDpreviewHwnd
-	Gui, ImageView:Color, White
+	Gui, ImageView:Color, 1e1e1e
 
 	; Register WM_PAINT handler
 	OnMessage(0x000F, "ImageViewPaint")

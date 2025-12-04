@@ -19,5 +19,6 @@ IniRead, ftpUser, %A_ScriptDir%\settings.ini, FTP, user,
 IniRead, ftpPass, %A_ScriptDir%\settings.ini, FTP, pass,
 IniRead, ftpPath, %A_ScriptDir%\settings.ini, FTP, path,
 IniRead, ftpUrl, %A_ScriptDir%\settings.ini, FTP, url,
-IniRead, ftpUploadTooltipDuration, %A_ScriptDir%\settings.ini, FTP, TooltipDuration, 5000
+; Read action tooltip duration (used for both FTP upload and OCR)
+IniRead, actionTooltipDuration, %A_ScriptDir%\settings.ini, General, ActionTooltipDuration, 5000
 

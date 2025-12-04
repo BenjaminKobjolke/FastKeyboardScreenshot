@@ -16,7 +16,7 @@
 CaptureScreen(aRect = 0, bCursor = False, saveToFile = 0, uploadAfterCapture = 0, editWithShareX = 0, ocrScreenshot = 0, nQuality = "", resizeBy = 1, unusedFolder = "", unusedPath = "", showWindow = 0)
 {
     ; Access global variables directly
-    global screenshotFolder, sharexPath, useInBuildFTP, ftpHost, ftpUser, ftpPass, ftpPath, ftpUrl, ftpUploadTooltipDuration, lastUploadedUrl, rapidOcr
+    global screenshotFolder, sharexPath, useInBuildFTP, ftpHost, ftpUser, ftpPass, ftpPath, ftpUrl, actionTooltipDuration, lastUploadedUrl, pendingOcrText, rapidOcr
 
     ; Clear any tooltip before capturing
     ToolTip,
@@ -126,8 +126,34 @@ CaptureScreen(aRect = 0, bCursor = False, saveToFile = 0, uploadAfterCapture = 0
 		Sleep, 200
 		FormatTime, currentDateTime, , yyyy_MM_dd_HH_mm_ss
 		baseFilename := currentDateTime
-		filename := baseFilename . ".jpg"
-		Convert(0, filename, "", screenshotFolder)
+
+		if(ocrScreenshot = 1) {
+			; OCR mode: save as TXT
+			filename := baseFilename . ".txt"
+			fullFilename := screenshotFolder . "\" . filename
+
+			; Save temp JPG for OCR processing
+			tempJpgFilename := baseFilename . "_temp.jpg"
+			Convert(0, tempJpgFilename, "", screenshotFolder)
+			tempJpgPath := screenshotFolder . "\" . tempJpgFilename
+
+			ToolTip, Running OCR...
+			ocrText := rapidOcr.ocr(tempJpgPath)
+			ToolTip
+
+			; Delete temp JPG
+			FileDelete, %tempJpgPath%
+
+			; Save text to .txt file only if saving or uploading
+			if(saveToFile = 1 || uploadAfterCapture = 1) {
+				FileAppend, %ocrText%, %fullFilename%
+			}
+			clipboard := ocrText
+		} else {
+			; Normal mode: save as JPG
+			filename := baseFilename . ".jpg"
+			Convert(0, filename, "", screenshotFolder)
+		}
 	}
 
     if(uploadAfterCapture = 1) {
@@ -135,7 +161,7 @@ CaptureScreen(aRect = 0, bCursor = False, saveToFile = 0, uploadAfterCapture = 0
 
 		if(useInBuildFTP = 1) {
 			; Use built-in FTP upload
-			ToolTip, Uploading screenshot...
+			ToolTip, Uploading...
 
 			; Remote filename is path + filename
 			remoteFile := ftpPath . filename
@@ -147,15 +173,19 @@ CaptureScreen(aRect = 0, bCursor = False, saveToFile = 0, uploadAfterCapture = 0
 				clipboard := finalUrl
 				lastUploadedUrl := finalUrl
 
-				; Show tooltip with open option
-				ToolTip, Upload complete!`n%finalUrl%`n`nPress o to open in browser`nPress Esc to dismiss
+				; Show tooltip only if not showing preview window
+				if(showWindow = 0) {
+					ToolTip, Upload complete!`n%finalUrl%`n`nPress o to open in browser`nPress Esc to dismiss
 
-				; Enable temporary hotkeys
-				Hotkey, o, OpenLastUploadedUrl, On
-				Hotkey, Escape, CancelUploadTooltip, On
+					; Enable temporary hotkeys
+					Hotkey, o, OpenLastUrl, On
+					Hotkey, Escape, CancelActionTooltip, On
 
-				; Set timer to disable hotkeys and clear tooltip
-				SetTimer, ClearUploadTooltip, -%ftpUploadTooltipDuration%
+					; Set timer to disable hotkeys and clear tooltip
+					SetTimer, ClearActionTooltip, -%actionTooltipDuration%
+				} else {
+					ToolTip
+				}
 			} else {
 				ToolTip
 				MsgBox, 16, Error, FTP upload failed.`n`nHost: %ftpHost%`nFile: %fullFilename%`nRemote: %remoteFile%
@@ -197,18 +227,24 @@ CaptureScreen(aRect = 0, bCursor = False, saveToFile = 0, uploadAfterCapture = 0
 		}
 	}
 
-	if(ocrScreenshot = 1) {
-		Sleep, 200
-		fullFilename := screenshotFolder . "\" . filename
+	; OCR-only mode (no upload) - show tooltip for local file or on-demand creation
+	if(ocrScreenshot = 1 && uploadAfterCapture = 0) {
+		; Skip tooltip if window preview is shown
+		if(showWindow = 0) {
+			if(saveToFile = 1) {
+				; File was saved, use it for 'o' hotkey
+				lastUploadedUrl := fullFilename
+				pendingOcrText := ""
+			} else {
+				; No file saved - store text for on-demand creation
+				lastUploadedUrl := ""
+				pendingOcrText := ocrText
+			}
 
-		ToolTip, Running OCR...
-		text := rapidOcr.ocr(fullFilename)
-		ToolTip
-
-		clipboard := text
-
-		if(saveToFile = 0) {
-			FileDelete, %fullFilename%
+			ToolTip, OCR complete!`nText copied to clipboard`n`nPress o to open in editor`nPress Esc to dismiss
+			Hotkey, o, OpenLastUrl, On
+			Hotkey, Escape, CancelActionTooltip, On
+			SetTimer, ClearActionTooltip, -%actionTooltipDuration%
 		}
 	}
 
@@ -216,12 +252,16 @@ CaptureScreen(aRect = 0, bCursor = False, saveToFile = 0, uploadAfterCapture = 0
     ; Add Gdip shutdown at the end of the function
     Gdip_Shutdown(pToken)
 
-	; Show window with image if requested (after Gdip_Shutdown)
-	if(showWindow = 1 && FileExist(tempFileForPreview)) {
-		ShowImageWindow(tempFileForPreview, nW, nH, resizeBy)
-	}
-	else if(showWindow = 1 && !FileExist(tempFileForPreview)) {
-		MsgBox, 16, Error, Failed to create preview image file.
+	; Show window with content if requested (after Gdip_Shutdown)
+	if(showWindow = 1) {
+		if(ocrScreenshot = 1) {
+			; Show text preview window for OCR
+			ShowTextWindow(ocrText)
+		} else if(FileExist(tempFileForPreview)) {
+			ShowImageWindow(tempFileForPreview, nW, nH, resizeBy)
+		} else {
+			MsgBox, 16, Error, Failed to create preview.
+		}
 	}
 }
 
