@@ -62,9 +62,10 @@ The screenshot will also be copied to the clipboard as usual.
 #### Show screenshot in window
 
 Press w during the screenshot process to toggle window preview on/off.
-When enabled, the screenshot will be displayed in a preview window after capture.
+When enabled, the screenshot will be displayed in a dark-themed preview window after capture.
 Press ESC or click the X button to close the preview window.
 The screenshot will also be copied to the clipboard as usual.
+The window position and size are saved automatically.
 
 #### Capture active window
 
@@ -94,7 +95,14 @@ The screenshot URL will be copied to the clipboard after upload.
 **Built-in FTP upload:**
 Set `UseInBuildFTP=1` in settings.ini and configure your FTP server details.
 A tooltip will show upload progress and the final URL.
+Press 'o' in the tooltip to open the URL in your browser, or press Escape to dismiss.
 See settings_example.ini for configuration options.
+
+**Tooltip duration** (in settings.ini):
+```ini
+[General]
+ActionTooltipDuration=5000
+```
 
 **ShareX upload:**
 Set `UseInBuildFTP=0` (default) to use ShareX for uploading.
@@ -107,10 +115,22 @@ It will also be copied to the clipboard as usual.
 Note that you need to have sharex installed and configured for this to work.
 Currently te path is fixed to `C:\Program Files\ShareX\ShareX.exe`
 
-#### ocr
+#### OCR (Optical Character Recognition)
 
-Press o during the screenshot process to run ocr on the screenshot.
-The text will be copied to the clipboard and not the image.
+Press o during the screenshot process to run OCR on the screenshot.
+The text will be copied to the clipboard (not the image).
+
+**OCR modes:**
+- **OCR only**: Text is copied to clipboard. Press 'o' in the tooltip to open in your default text editor.
+- **OCR + Save (o + f)**: Text is saved as a `.txt` file and copied to clipboard.
+- **OCR + Upload (o + u)**: Text is saved as `.txt`, uploaded to FTP, and URL is copied to clipboard.
+- **OCR + Window (o + w)**: Text is displayed in a dark-themed preview window.
+
+**Text Preview Window settings** (in settings.ini):
+```ini
+[TextPreviewWindow]
+FontSize=14
+```
 
 ## Licence
 
