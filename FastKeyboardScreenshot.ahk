@@ -96,3 +96,23 @@ return
 Exit:
 	ExitApp
 return
+
+; FTP upload tooltip hotkeys
+OpenLastUploadedUrl:
+    global lastUploadedUrl
+    if(lastUploadedUrl != "") {
+        Run, %lastUploadedUrl%
+    }
+    GoSub, ClearUploadTooltip
+return
+
+CancelUploadTooltip:
+    GoSub, ClearUploadTooltip
+return
+
+ClearUploadTooltip:
+    ToolTip
+    Hotkey, o, OpenLastUploadedUrl, Off
+    Hotkey, Escape, CancelUploadTooltip, Off
+    SetTimer, ClearUploadTooltip, Off
+return

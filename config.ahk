@@ -19,4 +19,5 @@ IniRead, ftpUser, %A_ScriptDir%\settings.ini, FTP, user,
 IniRead, ftpPass, %A_ScriptDir%\settings.ini, FTP, pass,
 IniRead, ftpPath, %A_ScriptDir%\settings.ini, FTP, path,
 IniRead, ftpUrl, %A_ScriptDir%\settings.ini, FTP, url,
+IniRead, ftpUploadTooltipDuration, %A_ScriptDir%\settings.ini, FTP, TooltipDuration, 5000
 

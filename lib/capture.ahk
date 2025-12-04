@@ -16,7 +16,7 @@
 CaptureScreen(aRect = 0, bCursor = False, saveToFile = 0, uploadAfterCapture = 0, editWithShareX = 0, ocrScreenshot = 0, nQuality = "", resizeBy = 1, unusedFolder = "", unusedPath = "", showWindow = 0)
 {
     ; Access global variables directly
-    global screenshotFolder, sharexPath, useInBuildFTP, ftpHost, ftpUser, ftpPass, ftpPath, ftpUrl
+    global screenshotFolder, sharexPath, useInBuildFTP, ftpHost, ftpUser, ftpPass, ftpPath, ftpUrl, ftpUploadTooltipDuration, lastUploadedUrl
 
     ; Clear any tooltip before capturing
     ToolTip,
@@ -145,9 +145,17 @@ CaptureScreen(aRect = 0, bCursor = False, saveToFile = 0, uploadAfterCapture = 0
 				; Copy URL to clipboard
 				finalUrl := ftpUrl . ftpPath . filename
 				clipboard := finalUrl
-				ToolTip, Upload complete!`n%finalUrl%
-				Sleep, 2000
-				ToolTip
+				lastUploadedUrl := finalUrl
+
+				; Show tooltip with open option
+				ToolTip, Upload complete!`n%finalUrl%`n`nPress o to open in browser`nPress Esc to dismiss
+
+				; Enable temporary hotkeys
+				Hotkey, o, OpenLastUploadedUrl, On
+				Hotkey, Escape, CancelUploadTooltip, On
+
+				; Set timer to disable hotkeys and clear tooltip
+				SetTimer, ClearUploadTooltip, -%ftpUploadTooltipDuration%
 			} else {
 				ToolTip
 				MsgBox, 16, Error, FTP upload failed.`n`nHost: %ftpHost%`nFile: %fullFilename%`nRemote: %remoteFile%
