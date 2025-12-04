@@ -1,6 +1,6 @@
 [submodule "github_modules/Gdip"]
 	path = github_modules/Gdip
 	url = https://github.com/tariqporter/Gdip.git
-[submodule "github_modules/OCR"]
-	path = github_modules/OCR
-	url = https://github.com/Descolada/OCR.git
+[submodule "github_modules/RapidOCR-AutoHotkey"]
+	path = github_modules/RapidOCR-AutoHotkey
+	url = https://github.com/telppa/RapidOCR-AutoHotkey.git

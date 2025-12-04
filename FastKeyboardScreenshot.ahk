@@ -9,8 +9,12 @@
 #Include %A_ScriptDir%\lib\gui.ahk
 #Include %A_ScriptDir%\lib\capture.ahk
 #Include %A_ScriptDir%\lib\FTP_Upload.ahk
+#Include %A_ScriptDir%\github_modules\RapidOCR-AutoHotkey\RapidOCR\RapidOCR.ahk
 
 CoordMode, Mouse, Screen
+
+; Initialize RapidOCR for English text
+rapidOcr := new RapidOCR({model: "en"})
 
 ; Global variables for ShareX
 sharexPath := ""

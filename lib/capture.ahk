@@ -16,7 +16,7 @@
 CaptureScreen(aRect = 0, bCursor = False, saveToFile = 0, uploadAfterCapture = 0, editWithShareX = 0, ocrScreenshot = 0, nQuality = "", resizeBy = 1, unusedFolder = "", unusedPath = "", showWindow = 0)
 {
     ; Access global variables directly
-    global screenshotFolder, sharexPath, useInBuildFTP, ftpHost, ftpUser, ftpPass, ftpPath, ftpUrl, ftpUploadTooltipDuration, lastUploadedUrl
+    global screenshotFolder, sharexPath, useInBuildFTP, ftpHost, ftpUser, ftpPass, ftpPath, ftpUrl, ftpUploadTooltipDuration, lastUploadedUrl, rapidOcr
 
     ; Clear any tooltip before capturing
     ToolTip,
@@ -198,20 +198,16 @@ CaptureScreen(aRect = 0, bCursor = False, saveToFile = 0, uploadAfterCapture = 0
 	}
 
 	if(ocrScreenshot = 1) {
-		Sleep, 2000
-		fullBaseFilename := screenshotFolder . "\" . baseFilename
+		Sleep, 200
 		fullFilename := screenshotFolder . "\" . filename
-		if (!a_iscompiled) {
-			RunWait, "ocr.ahk" "%fullBaseFilename%"
-		} else {
-			RunWait, "ocr.exe" "%fullBaseFilename%"
-		}
-		textFilename := fullBaseFilename . ".txt"
-		FileRead, text, %textFilename%
+
+		ToolTip, Running OCR...
+		text := rapidOcr.ocr(fullFilename)
+		ToolTip
+
 		clipboard := text
-		FileDelete, %textFilename%
+
 		if(saveToFile = 0) {
-			Sleep, 3000
 			FileDelete, %fullFilename%
 		}
 	}
