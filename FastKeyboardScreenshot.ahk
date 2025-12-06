@@ -7,9 +7,19 @@
 ; Include library modules (functions only - no hotkeys/labels)
 #Include %A_ScriptDir%\lib\utils.ahk
 #Include %A_ScriptDir%\lib\gui.ahk
+#Include %A_ScriptDir%\lib\image.ahk
 #Include %A_ScriptDir%\lib\capture.ahk
+#Include %A_ScriptDir%\lib\crop.ahk
 #Include %A_ScriptDir%\lib\FTP_Upload.ahk
 #Include %A_ScriptDir%\github_modules\RapidOCR-AutoHotkey\RapidOCR\RapidOCR.ahk
+
+; Initialize GDI+ once at startup (keep running for entire script lifetime)
+pGdipToken := Gdip_Startup()
+if (!pGdipToken) {
+    MsgBox, 48, Error!, GDI+ failed to initialize
+    ExitApp
+}
+OnExit("CleanupGdip")
 
 CoordMode, Mouse, Screen
 
@@ -46,10 +56,18 @@ OnMessage(0x007E, "HandleResolutionChange")
 previewImagePath := ""
 previewImageWidth := 0
 previewImageHeight := 0
-previewPToken := 0
 previewPBitmap := 0
 previewHwnd := 0
 previewTempFile := ""
+previewSavedFilePath := ""  ; Track saved file for overwrite
+
+; Global variables for crop mode
+previewMode := "viewing"  ; "viewing" or "crop"
+cropLeft := 0
+cropTop := 0
+cropRight := 0
+cropBottom := 0
+cropStep := 10  ; Pixels per keypress
 
 ; Global variables for text preview window
 textPreviewHwnd := 0
@@ -136,3 +154,10 @@ ClearActionTooltip:
     SetTimer, ClearActionTooltip, Off
     pendingOcrText := ""  ; Clear pending text if user dismissed
 return
+
+; Cleanup GDI+ on script exit
+CleanupGdip() {
+    global pGdipToken
+    if (pGdipToken)
+        Gdip_Shutdown(pGdipToken)
+}

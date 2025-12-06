@@ -16,21 +16,19 @@
 CaptureScreen(aRect = 0, bCursor = False, saveToFile = 0, uploadAfterCapture = 0, editWithShareX = 0, ocrScreenshot = 0, nQuality = "", resizeBy = 1, unusedFolder = "", unusedPath = "", showWindow = 0)
 {
     ; Access global variables directly
-    global screenshotFolder, sharexPath, useInBuildFTP, ftpHost, ftpUser, ftpPass, ftpPath, ftpUrl, actionTooltipDuration, lastUploadedUrl, pendingOcrText, rapidOcr
+    global screenshotFolder, sharexPath, useInBuildFTP, ftpHost, ftpUser, ftpPass, ftpPath, ftpUrl, actionTooltipDuration, lastUploadedUrl, pendingOcrText, rapidOcr, previewSavedFilePath
 
     ; Clear any tooltip before capturing
     ToolTip,
     Sleep, 100
 
+    ; Reset saved file path for new screenshot (will be set if saveToFile=1)
+    if (saveToFile = 0) {
+        previewSavedFilePath := ""
+    }
+
     ; Declare temp file variable at function scope
     tempFileForPreview := ""
-
-    ; Add Gdip startup
-    If !pToken := Gdip_Startup()
-    {
-        MsgBox, 48, Error!, Gdiplus failed to start. Please ensure you have gdiplus on your system
-        ExitApp
-    }
 
 	If !aRect
 	{
@@ -153,6 +151,10 @@ CaptureScreen(aRect = 0, bCursor = False, saveToFile = 0, uploadAfterCapture = 0
 			; Normal mode: save as JPG
 			filename := baseFilename . ".jpg"
 			Convert(0, filename, "", screenshotFolder)
+			; Track saved file path for preview window overwrite
+			if (saveToFile = 1) {
+				previewSavedFilePath := screenshotFolder . "\" . filename
+			}
 		}
 	}
 
@@ -249,10 +251,8 @@ CaptureScreen(aRect = 0, bCursor = False, saveToFile = 0, uploadAfterCapture = 0
 	}
 
 	DllCall("DeleteObject", "ptr", hBM)
-    ; Add Gdip shutdown at the end of the function
-    Gdip_Shutdown(pToken)
 
-	; Show window with content if requested (after Gdip_Shutdown)
+	; Show window with content if requested
 	if(showWindow = 1) {
 		if(ocrScreenshot = 1) {
 			; Show text preview window for OCR
@@ -263,17 +263,6 @@ CaptureScreen(aRect = 0, bCursor = False, saveToFile = 0, uploadAfterCapture = 0
 			MsgBox, 16, Error, Failed to create preview.
 		}
 	}
-}
-
-
-Gdip_ResizeBitmap(pBitmap, newWidth, newHeight)
-{
-    pBitmapResized := Gdip_CreateBitmap(newWidth, newHeight)
-    G := Gdip_GraphicsFromImage(pBitmapResized)
-    Gdip_SetInterpolationMode(G, 7) ; High quality bicubic interpolation
-    Gdip_DrawImage(G, pBitmap, 0, 0, newWidth, newHeight, 0, 0, Gdip_GetImageWidth(pBitmap), Gdip_GetImageHeight(pBitmap))
-    Gdip_DeleteGraphics(G)
-    return pBitmapResized
 }
 
 
@@ -315,103 +304,4 @@ Zoomer(hBM, nW, nH, znW, znH)
 	DllCall("DeleteDC", "ptr", mDC2)
 	DllCall("DeleteObject", "ptr", hBM)
 	Return zhBM
-}
-
-Convert(sFileFr = "", sFileTo = "", nQuality = "", screenshotFolder = "")
-{
-	If (sFileTo = "")
-		sFileTo := A_ScriptDir . "\screen.bmp"
-
-	SplitPath, sFileTo, , sDirTo, sExtTo, sNameTo
-	sDirTo := screenshotFolder
-
-	if (!FileExist(sDirTo))
-	{
-	   FileCreateDir, %sDirTo%
-	}
-
-	If Not hGdiPlus := DllCall("LoadLibrary", "str", "gdiplus.dll", "ptr")
-		Return	sFileFr+0 ? SaveHBITMAPToFile(sFileFr, sDirTo (sDirTo = "" ? "" : "\") sNameTo ".bmp") : ""
-	VarSetCapacity(si, 16, 0), si := Chr(1)
-	DllCall("gdiplus\GdiplusStartup", "UintP", pToken, "ptr", &si, "ptr", 0)
-
-	If !sFileFr
-	{
-		DllCall("OpenClipboard", "ptr", 0)
-		If	(DllCall("IsClipboardFormatAvailable", "Uint", 2) && (hBM:=DllCall("GetClipboardData", "Uint", 2, "ptr")))
-			DllCall("gdiplus\GdipCreateBitmapFromHBITMAP", "ptr", hBM, "ptr", 0, "ptr*", pImage)
-		DllCall("CloseClipboard")
-	}
-	Else If	sFileFr Is Integer
-		DllCall("gdiplus\GdipCreateBitmapFromHBITMAP", "ptr", sFileFr, "ptr", 0, "ptr*", pImage)
-	Else	DllCall("gdiplus\GdipLoadImageFromFile", "wstr", sFileFr, "ptr*", pImage)
-	DllCall("gdiplus\GdipGetImageEncodersSize", "UintP", nCount, "UintP", nSize)
-	VarSetCapacity(ci,nSize,0)
-	DllCall("gdiplus\GdipGetImageEncoders", "Uint", nCount, "Uint", nSize, "ptr", &ci)
-	struct_size := 48+7*A_PtrSize, offset := 32 + 3*A_PtrSize, pCodec := &ci - struct_size
-	Loop, %	nCount
-		If InStr(StrGet(Numget(offset + (pCodec+=struct_size)), "utf-16") , "." . sExtTo)
-			break
-
-	If (InStr(".JPG.JPEG.JPE.JFIF", "." . sExtTo) && nQuality<>"" && pImage && pCodec < &ci + nSize)
-	{
-		DllCall("gdiplus\GdipGetEncoderParameterListSize", "ptr", pImage, "ptr", pCodec, "UintP", nCount)
-		VarSetCapacity(pi,nCount,0), struct_size := 24 + A_PtrSize
-		DllCall("gdiplus\GdipGetEncoderParameterList", "ptr", pImage, "ptr", pCodec, "Uint", nCount, "ptr", &pi)
-		Loop, %	NumGet(pi,0,"uint")
-			If (NumGet(pi,struct_size*(A_Index-1)+16+A_PtrSize,"uint")=1 && NumGet(pi,struct_size*(A_Index-1)+20+A_PtrSize,"uint")=6)
-			{
-				pParam := &pi+struct_size*(A_Index-1)
-				NumPut(nQuality,NumGet(NumPut(4,NumPut(1,pParam+0,"uint")+16+A_PtrSize,"uint")),"uint")
-				Break
-			}
-	}
-
-	filePath = %sDirTo%\%sFileTo%
-
-	If pImage
-		pCodec < &ci + nSize	? DllCall("gdiplus\GdipSaveImageToFile", "ptr", pImage, "wstr", filePath, "ptr", pCodec, "ptr", pParam) : DllCall("gdiplus\GdipCreateHBITMAPFromBitmap", "ptr", pImage, "ptr*", hBitmap, "Uint", 0) . SetClipboardData(hBitmap), DllCall("gdiplus\GdipDisposeImage", "ptr", pImage)
-
-	DllCall("gdiplus\GdiplusShutdown" , "Uint", pToken)
-	DllCall("FreeLibrary", "ptr", hGdiPlus)
-}
-
-CreateDIBSectionVariant(hDC, nW, nH, bpp = 32, ByRef pBits = "")
-{
-	VarSetCapacity(bi, 40, 0)
-	NumPut(40, bi, "uint")
-	NumPut(nW, bi, 4, "int")
-	NumPut(nH, bi, 8, "int")
-	NumPut(bpp, NumPut(1, bi, 12, "UShort"), 0, "Ushort")
-	Return DllCall("gdi32\CreateDIBSection", "ptr", hDC, "ptr", &bi, "Uint", 0, "UintP", pBits, "ptr", 0, "Uint", 0, "ptr")
-}
-
-SaveHBITMAPToFile(hBitmap, sFile)
-{
-	VarSetCapacity(oi,104,0)
-	DllCall("GetObject", "ptr", hBitmap, "int", 64+5*A_PtrSize, "ptr", &oi)
-	fObj := FileOpen(sFile, "w")
-	fObj.WriteShort(0x4D42)
-	fObj.WriteInt(54+NumGet(oi,36+2*A_PtrSize,"uint"))
-	fObj.WriteInt64(54<<32)
-	fObj.RawWrite(&oi + 16 + 2*A_PtrSize, 40)
-	fObj.RawWrite(NumGet(oi, 16+A_PtrSize), NumGet(oi,36+2*A_PtrSize,"uint"))
-	fObj.Close()
-}
-
-SetClipboardData(hBitmap)
-{
-	VarSetCapacity(oi,104,0)
-	DllCall("GetObject", "ptr", hBitmap, "int", 64+5*A_PtrSize, "ptr", &oi)
-	sz := NumGet(oi,36+2*A_PtrSize,"uint")
-	hDIB :=	DllCall("GlobalAlloc", "Uint", 2, "Uptr", 40+sz, "ptr")
-	pDIB := DllCall("GlobalLock", "ptr", hDIB, "ptr")
-	DllCall("RtlMoveMemory", "ptr", pDIB, "ptr", &oi + 16 + 2*A_PtrSize, "Uptr", 40)
-	DllCall("RtlMoveMemory", "ptr", pDIB+40, "ptr", NumGet(oi, 16+A_PtrSize), "Uptr", sz)
-	DllCall("GlobalUnlock", "ptr", hDIB)
-	DllCall("DeleteObject", "ptr", hBitmap)
-	DllCall("OpenClipboard", "ptr", 0)
-	DllCall("EmptyClipboard")
-	DllCall("SetClipboardData", "Uint", 8, "ptr", hDIB)
-	DllCall("CloseClipboard")
 }
