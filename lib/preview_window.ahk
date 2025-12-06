@@ -62,7 +62,7 @@ return
 
 ImageViewPaint(wParam, lParam, msg, hwnd)
 {
-	global previewHwnd, previewImageWidth, previewImageHeight, previewPBitmap
+	global previewHwnd, previewImageWidth, previewImageHeight, previewPBitmap, previewMode
 
 	; Only handle paint for our preview window
 	if (hwnd != previewHwnd || !previewPBitmap)
@@ -78,8 +78,10 @@ ImageViewPaint(wParam, lParam, msg, hwnd)
 	width := NumGet(rect, 8, "int")
 	height := NumGet(rect, 12, "int")
 
-	; Leave space for text at bottom
-	availHeight := height - 30
+	; Leave space for top and bottom status bars
+	topBarHeight := 30
+	bottomBarHeight := 45
+	availHeight := height - topBarHeight - bottomBarHeight
 
 	; Create GDI+ graphics from the paint DC
 	pGraphics := Gdip_GraphicsFromHDC(hdc)
@@ -98,13 +100,13 @@ ImageViewPaint(wParam, lParam, msg, hwnd)
 		scaledWidth := width
 		scaledHeight := width / imageAspect
 		offsetX := 0
-		offsetY := (availHeight - scaledHeight) / 2
+		offsetY := topBarHeight + (availHeight - scaledHeight) / 2
 	} else {
 		; Image is taller - fit to height
 		scaledHeight := availHeight
 		scaledWidth := availHeight * imageAspect
 		offsetX := (width - scaledWidth) / 2
-		offsetY := 0
+		offsetY := topBarHeight
 	}
 
 	; Round to integers for stable rendering
@@ -116,6 +118,14 @@ ImageViewPaint(wParam, lParam, msg, hwnd)
 	; Draw the scaled image
 	Gdip_DrawImage(pGraphics, previewPBitmap, offsetX, offsetY, scaledWidth, scaledHeight)
 
+	; Draw crop overlay if in crop mode
+	if (previewMode = "crop")
+		DrawCropOverlay(pGraphics, offsetX, offsetY, scaledWidth, scaledHeight)
+
+	; Draw status bars
+	DrawStatusBar(pGraphics, width, height)
+	DrawTopStatusBar(pGraphics, width)
+
 	; Cleanup
 	Gdip_DeleteGraphics(pGraphics)
 	DllCall("EndPaint", "ptr", hwnd, "ptr", &ps)
@@ -124,7 +134,7 @@ ImageViewPaint(wParam, lParam, msg, hwnd)
 ShowImageWindow(tempFile, nW, nH, resizeBy = 1)
 {
 	global previewImagePath, previewImageWidth, previewImageHeight
-	global previewPToken, previewPBitmap, previewHwnd, previewTempFile
+	global previewPBitmap, previewHwnd, previewTempFile
 
 	; Close existing preview window if already open
 	if (previewHwnd) {
@@ -134,11 +144,9 @@ ShowImageWindow(tempFile, nW, nH, resizeBy = 1)
 		; Unregister WM_PAINT handler
 		OnMessage(0x000F, "ImageViewPaint", 0)
 
-		; Cleanup GDI+ resources
+		; Cleanup GDI+ bitmap
 		if (previewPBitmap)
 			Gdip_DisposeImage(previewPBitmap)
-		if (previewPToken)
-			Gdip_Shutdown(previewPToken)
 
 		; Delete old temp file
 		if (previewTempFile && FileExist(previewTempFile))
@@ -146,13 +154,15 @@ ShowImageWindow(tempFile, nW, nH, resizeBy = 1)
 
 		; Reset variables
 		previewPBitmap := 0
-		previewPToken := 0
 		previewHwnd := 0
 		previewTempFile := ""
 
 		; Small delay to ensure window is fully closed
 		Sleep, 50
 	}
+
+	; Reset crop state when opening new preview
+	ResetCropState()
 
 	; Store image path and temp file globally
 	previewImagePath := tempFile
@@ -166,13 +176,6 @@ ShowImageWindow(tempFile, nW, nH, resizeBy = 1)
 	IniRead, savedHeight, %A_ScriptDir%\settings.ini, PreviewWindow, Height, %previewImageHeight%
 	IniRead, savedX, %A_ScriptDir%\settings.ini, PreviewWindow, X, Center
 	IniRead, savedY, %A_ScriptDir%\settings.ini, PreviewWindow, Y, Center
-
-	; Initialize GDI+ for preview window
-	If !previewPToken := Gdip_Startup()
-	{
-		MsgBox, 48, Error!, Gdiplus failed to start for preview window
-		return
-	}
 
 	; Load the bitmap from file
 	previewPBitmap := Gdip_CreateBitmapFromFile(tempFile)
@@ -210,7 +213,7 @@ return
 
 ; GUI close handler for when user clicks X button
 ImageViewGuiClose:
-	global previewPBitmap, previewPToken, previewHwnd, previewTempFile
+	global previewPBitmap, previewHwnd, previewTempFile, previewSavedFilePath
 
 	; Save window position and size
 	WinGetPos, winX, winY, winWidth, winHeight, Screenshot Preview
@@ -222,20 +225,19 @@ ImageViewGuiClose:
 	; Unregister WM_PAINT handler
 	OnMessage(0x000F, "ImageViewPaint", 0)
 
-	; Cleanup GDI+ resources
+	; Cleanup GDI+ bitmap
 	if (previewPBitmap)
 		Gdip_DisposeImage(previewPBitmap)
-	if (previewPToken)
-		Gdip_Shutdown(previewPToken)
 
 	; Clean up temp file
 	if (previewTempFile && FileExist(previewTempFile))
 		FileDelete, %previewTempFile%
 
+	ResetCropState()
 	previewPBitmap := 0
-	previewPToken := 0
 	previewHwnd := 0
 	previewTempFile := ""
+	previewSavedFilePath := ""
 
 	Gui, ImageView:Destroy
 return
@@ -243,7 +245,14 @@ return
 ; Hotkeys for preview window
 #If WinActive("Screenshot Preview")
 Esc::
-	global previewPBitmap, previewPToken, previewHwnd, previewTempFile
+	global previewPBitmap, previewHwnd, previewTempFile, previewMode, previewSavedFilePath
+
+	; If in crop mode, just exit to viewing mode
+	if (previewMode = "crop") {
+		ResetCropState()
+		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
+		return
+	}
 
 	; Save window position and size
 	WinGetPos, winX, winY, winWidth, winHeight, Screenshot Preview
@@ -255,58 +264,220 @@ Esc::
 	; Unregister WM_PAINT handler
 	OnMessage(0x000F, "ImageViewPaint", 0)
 
-	; Cleanup GDI+ resources
+	; Cleanup GDI+ bitmap
 	if (previewPBitmap)
 		Gdip_DisposeImage(previewPBitmap)
-	if (previewPToken)
-		Gdip_Shutdown(previewPToken)
 
 	; Clean up temp file
 	if (previewTempFile && FileExist(previewTempFile))
 		FileDelete, %previewTempFile%
 
+	ResetCropState()
 	previewPBitmap := 0
-	previewPToken := 0
 	previewHwnd := 0
 	previewTempFile := ""
+	previewSavedFilePath := ""
 
 	Gui, ImageView:Destroy
 return
 
-; Hotkey to save the screenshot from preview window
-f::
-	global previewTempFile, screenshotFolder
+; Enter crop mode
+c::
+	global previewMode, previewHwnd, cropLeft, cropTop, cropRight, cropBottom
+	if (previewMode = "viewing") {
+		previewMode := "crop"
+		cropLeft := 0
+		cropTop := 0
+		cropRight := 0
+		cropBottom := 0
+		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
+	}
+return
 
-	; Check if we have a temp file to save
-	if (!previewTempFile || !FileExist(previewTempFile)) {
+; Crop adjustments - shrink from left
+h::
+Left::
+	global previewMode, cropStep, previewHwnd
+	if (previewMode = "crop") {
+		AdjustCropEdge("left", cropStep)
+		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
+	}
+return
+
+; Crop adjustments - extend left (Shift)
++h::
++Left::
+	global previewMode, cropStep, previewHwnd
+	if (previewMode = "crop") {
+		AdjustCropEdge("left", -cropStep)
+		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
+	}
+return
+
+; Crop adjustments - shrink from right
+l::
+Right::
+	global previewMode, cropStep, previewHwnd
+	if (previewMode = "crop") {
+		AdjustCropEdge("right", cropStep)
+		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
+	}
+return
+
+; Crop adjustments - extend right (Shift)
++l::
++Right::
+	global previewMode, cropStep, previewHwnd
+	if (previewMode = "crop") {
+		AdjustCropEdge("right", -cropStep)
+		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
+	}
+return
+
+; Crop adjustments - shrink from top
+k::
+Up::
+	global previewMode, cropStep, previewHwnd
+	if (previewMode = "crop") {
+		AdjustCropEdge("top", cropStep)
+		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
+	}
+return
+
+; Crop adjustments - extend top (Shift)
++k::
++Up::
+	global previewMode, cropStep, previewHwnd
+	if (previewMode = "crop") {
+		AdjustCropEdge("top", -cropStep)
+		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
+	}
+return
+
+; Crop adjustments - shrink from bottom
+j::
+Down::
+	global previewMode, cropStep, previewHwnd
+	if (previewMode = "crop") {
+		AdjustCropEdge("bottom", cropStep)
+		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
+	}
+return
+
+; Crop adjustments - extend bottom (Shift)
++j::
++Down::
+	global previewMode, cropStep, previewHwnd
+	if (previewMode = "crop") {
+		AdjustCropEdge("bottom", -cropStep)
+		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
+	}
+return
+
+; Apply crop
+Enter::
+	global previewMode, previewHwnd
+	if (previewMode = "crop") {
+		ApplyCrop()
+		previewMode := "viewing"
+		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
+	}
+return
+
+; Hotkey to save the screenshot from preview window (viewing mode only)
+f::
+	global previewPBitmap, screenshotFolder, previewSavedFilePath, previewMode
+
+	; Only work in viewing mode
+	if (previewMode != "viewing")
+		return
+
+	; Check if we have a bitmap to save
+	if (!previewPBitmap) {
 		ToolTip, Error: No screenshot to save
 		Sleep, 2000
 		ToolTip,
 		return
 	}
 
-	; Create screenshots folder if it doesn't exist
-	if (!FileExist(screenshotFolder)) {
-		FileCreateDir, %screenshotFolder%
+	; If already saved, overwrite same file
+	if (previewSavedFilePath && previewSavedFilePath != "") {
+		fullFilePath := previewSavedFilePath
+	} else {
+		; First save: create new file with timestamp
+		saveFolder := screenshotFolder
+		if (!saveFolder || saveFolder = "" || saveFolder = "ERROR") {
+			saveFolder := A_ScriptDir . "\screenshots"
+		}
+
+		; Create screenshots folder if it doesn't exist
+		if (!FileExist(saveFolder)) {
+			FileCreateDir, %saveFolder%
+		}
+
+		; Generate timestamp-based filename
+		FormatTime, currentDateTime, , yyyy_MM_dd_HH_mm_ss
+		fullFilePath := saveFolder . "\" . currentDateTime . ".jpg"
+		previewSavedFilePath := fullFilePath  ; Track for future overwrites
 	}
 
-	; Generate timestamp-based filename
-	FormatTime, currentDateTime, , yyyy_MM_dd_HH_mm_ss
-	filename := currentDateTime . ".bmp"
-	fullFilePath := screenshotFolder . "\" . filename
-
-	; Copy the temp file to the screenshots folder
-	FileCopy, %previewTempFile%, %fullFilePath%, 1
+	; Save the in-memory bitmap (works with cropped images)
+	result := SaveGdipBitmap(previewPBitmap, fullFilePath)
 
 	; Show feedback to user
-	if (ErrorLevel = 0) {
+	if (result = 0) {
 		ToolTip, Screenshot saved to: %fullFilePath%
 		Sleep, 2000
 		ToolTip,
 	} else {
-		ToolTip, Error: Failed to save screenshot
+		; Show specific error
+		if (result = -1)
+			ToolTip, Error: Unsupported file format
+		else if (result = -2)
+			ToolTip, Error: Could not get encoders
+		else if (result = -3)
+			ToolTip, Error: No matching encoder
+		else if (result = -4)
+			ToolTip, Error: Could not get filename
+		else if (result = -5)
+			ToolTip, Error: Could not save to disk
+		else
+			ToolTip, Error: Failed to save (code: %result%)
 		Sleep, 2000
 		ToolTip,
 	}
+return
+
+; Hotkey to upload the screenshot from preview window (viewing mode only)
+u::
+	global previewPBitmap, previewMode, screenshotFolder, previewSavedFilePath
+
+	; Only work in viewing mode
+	if (previewMode != "viewing")
+		return
+
+	if (!previewPBitmap) {
+		ToolTip, Error: No screenshot to upload
+		Sleep, 2000
+		ToolTip,
+		return
+	}
+
+	; Save to file first if not already saved
+	if (!previewSavedFilePath || previewSavedFilePath = "") {
+		saveFolder := screenshotFolder
+		if (!saveFolder || saveFolder = "" || saveFolder = "ERROR")
+			saveFolder := A_ScriptDir . "\screenshots"
+		if (!FileExist(saveFolder))
+			FileCreateDir, %saveFolder%
+		FormatTime, currentDateTime, , yyyy_MM_dd_HH_mm_ss
+		fullFilePath := saveFolder . "\" . currentDateTime . ".jpg"
+		SaveGdipBitmap(previewPBitmap, fullFilePath)
+		previewSavedFilePath := fullFilePath
+	} else {
+		fullFilePath := previewSavedFilePath
+	}
+
+	UploadFile(fullFilePath)
 return
 #If
