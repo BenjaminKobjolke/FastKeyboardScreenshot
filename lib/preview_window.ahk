@@ -135,6 +135,10 @@ ImageViewPaint(wParam, lParam, msg, hwnd)
 	if (previewMode = "number")
 		DrawNumbersOverlay(pGraphics, offsetX, offsetY, scaledWidth, scaledHeight)
 
+	; Draw rectangles overlay if in rectangle mode
+	if (previewMode = "rectangle")
+		DrawRectanglesOverlay(pGraphics, offsetX, offsetY, scaledWidth, scaledHeight)
+
 	; Draw status bars
 	DrawStatusBar(pGraphics, width, height)
 	DrawTopStatusBar(pGraphics, width)
@@ -300,6 +304,13 @@ Esc::
 		return
 	}
 
+	; If in rectangle mode, just exit to viewing mode (discard rectangles)
+	if (previewMode = "rectangle") {
+		ResetRectangleState()
+		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
+		return
+	}
+
 	; Save window position and size
 	WinGetPos, winX, winY, winWidth, winHeight, Screenshot Preview
 	IniWrite, %winWidth%, %A_ScriptDir%\settings.ini, PreviewWindow, Width
@@ -351,7 +362,19 @@ n::
 	}
 return
 
-; Enter crop mode / Cycle arrow/number color
+; Enter rectangle mode
+r::
+	global previewMode, previewHwnd, rectangles, rectSettingStart
+	if (previewMode = "viewing") {
+		previewMode := "rectangle"
+		rectSettingStart := 0
+		rectangles := []
+		SetArrowCursorFromMouse()
+		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
+	}
+return
+
+; Enter crop mode / Cycle arrow/number/rectangle color
 c::
 	global previewMode, previewHwnd, cropLeft, cropTop, cropRight, cropBottom
 	if (previewMode = "viewing") {
@@ -367,116 +390,119 @@ c::
 	} else if (previewMode = "number") {
 		CycleNumberColor()
 		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
+	} else if (previewMode = "rectangle") {
+		CycleRectangleColor()
+		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
 	}
 return
 
-; Movement - left (crop: shrink, arrow/number: move cursor)
+; Movement - left (crop: shrink, arrow/number/rectangle: move cursor)
 h::
 Left::
 	global previewMode, cropStep, arrowMoveStep, previewHwnd
 	if (previewMode = "crop") {
 		AdjustCropEdge("left", cropStep)
 		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
-	} else if (previewMode = "arrow" || previewMode = "number") {
+	} else if (previewMode = "arrow" || previewMode = "number" || previewMode = "rectangle") {
 		MoveArrowCursor(-arrowMoveStep, 0)
 		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
 	}
 return
 
-; Movement - extend left (Shift) / fast move arrow/number cursor
+; Movement - extend left (Shift) / fast move cursor
 +h::
 +Left::
 	global previewMode, cropStep, arrowMoveStep, previewHwnd
 	if (previewMode = "crop") {
 		AdjustCropEdge("left", -cropStep)
 		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
-	} else if (previewMode = "arrow" || previewMode = "number") {
+	} else if (previewMode = "arrow" || previewMode = "number" || previewMode = "rectangle") {
 		MoveArrowCursor(-arrowMoveStep * 5, 0)
 		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
 	}
 return
 
-; Movement - right (crop: shrink, arrow/number: move cursor)
+; Movement - right (crop: shrink, annotation: move cursor)
 l::
 Right::
 	global previewMode, cropStep, arrowMoveStep, previewHwnd
 	if (previewMode = "crop") {
 		AdjustCropEdge("right", cropStep)
 		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
-	} else if (previewMode = "arrow" || previewMode = "number") {
+	} else if (previewMode = "arrow" || previewMode = "number" || previewMode = "rectangle") {
 		MoveArrowCursor(arrowMoveStep, 0)
 		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
 	}
 return
 
-; Movement - extend right (Shift) / fast move arrow/number cursor
+; Movement - extend right (Shift) / fast move cursor
 +l::
 +Right::
 	global previewMode, cropStep, arrowMoveStep, previewHwnd
 	if (previewMode = "crop") {
 		AdjustCropEdge("right", -cropStep)
 		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
-	} else if (previewMode = "arrow" || previewMode = "number") {
+	} else if (previewMode = "arrow" || previewMode = "number" || previewMode = "rectangle") {
 		MoveArrowCursor(arrowMoveStep * 5, 0)
 		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
 	}
 return
 
-; Movement - up (crop: shrink, arrow/number: move cursor)
+; Movement - up (crop: shrink, annotation: move cursor)
 k::
 Up::
 	global previewMode, cropStep, arrowMoveStep, previewHwnd
 	if (previewMode = "crop") {
 		AdjustCropEdge("top", cropStep)
 		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
-	} else if (previewMode = "arrow" || previewMode = "number") {
+	} else if (previewMode = "arrow" || previewMode = "number" || previewMode = "rectangle") {
 		MoveArrowCursor(0, -arrowMoveStep)
 		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
 	}
 return
 
-; Movement - extend top (Shift) / fast move arrow/number cursor
+; Movement - extend top (Shift) / fast move cursor
 +k::
 +Up::
 	global previewMode, cropStep, arrowMoveStep, previewHwnd
 	if (previewMode = "crop") {
 		AdjustCropEdge("top", -cropStep)
 		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
-	} else if (previewMode = "arrow" || previewMode = "number") {
+	} else if (previewMode = "arrow" || previewMode = "number" || previewMode = "rectangle") {
 		MoveArrowCursor(0, -arrowMoveStep * 5)
 		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
 	}
 return
 
-; Movement - down (crop: shrink, arrow/number: move cursor)
+; Movement - down (crop: shrink, annotation: move cursor)
 j::
 Down::
 	global previewMode, cropStep, arrowMoveStep, previewHwnd
 	if (previewMode = "crop") {
 		AdjustCropEdge("bottom", cropStep)
 		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
-	} else if (previewMode = "arrow" || previewMode = "number") {
+	} else if (previewMode = "arrow" || previewMode = "number" || previewMode = "rectangle") {
 		MoveArrowCursor(0, arrowMoveStep)
 		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
 	}
 return
 
-; Movement - extend bottom (Shift) / fast move arrow/number cursor
+; Movement - extend bottom (Shift) / fast move cursor
 +j::
 +Down::
 	global previewMode, cropStep, arrowMoveStep, previewHwnd
 	if (previewMode = "crop") {
 		AdjustCropEdge("bottom", -cropStep)
 		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
-	} else if (previewMode = "arrow" || previewMode = "number") {
+	} else if (previewMode = "arrow" || previewMode = "number" || previewMode = "rectangle") {
 		MoveArrowCursor(0, arrowMoveStep * 5)
 		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
 	}
 return
 
-; Apply (crop, arrows, or numbers)
+; Apply (crop, arrows, numbers, or rectangles)
 Enter::
-	global previewMode, previewHwnd, arrowSettingStart
+	global previewMode, previewHwnd, arrowSettingStart, rectSettingStart
 	if (previewMode = "crop") {
 		ApplyCrop()
 		previewMode := "viewing"
@@ -492,19 +518,29 @@ Enter::
 		ApplyNumbers()
 		previewMode := "viewing"
 		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
+	} else if (previewMode = "rectangle") {
+		; Finish in-progress rectangle first if first corner was set
+		if (rectSettingStart = 1)
+			SetRectanglePoint()
+		ApplyRectangles()
+		previewMode := "viewing"
+		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
 	}
 return
 
-; Set arrow point (Space)
+; Set arrow/rectangle point (Space)
 Space::
 	global previewMode, previewHwnd
 	if (previewMode = "arrow") {
 		SetArrowPoint()
 		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
+	} else if (previewMode = "rectangle") {
+		SetRectanglePoint()
+		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
 	}
 return
 
-; Increase arrow/number size
+; Increase arrow/number/rectangle size
 i::
 	global previewMode, previewHwnd
 	if (previewMode = "arrow") {
@@ -513,12 +549,15 @@ i::
 	} else if (previewMode = "number") {
 		ChangeNumberSize(1)
 		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
+	} else if (previewMode = "rectangle") {
+		ChangeRectangleSize(1)
+		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
 	}
 return
 
-; Undo last arrow/number
+; Undo last arrow/number/rectangle
 z::
-	global previewMode, previewHwnd, arrows, numbers
+	global previewMode, previewHwnd, arrows, numbers, rectangles
 	if (previewMode = "arrow") {
 		if (arrows.Length() > 0) {
 			arrows.Pop()
@@ -527,6 +566,11 @@ z::
 	} else if (previewMode = "number") {
 		if (numbers.Length() > 0) {
 			numbers.Pop()
+			DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
+		}
+	} else if (previewMode = "rectangle") {
+		if (rectangles.Length() > 0) {
+			rectangles.Pop()
 			DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
 		}
 	}
@@ -677,7 +721,7 @@ f::
 	}
 return
 
-; Hotkey: u = upload (viewing) or decrease arrow/number size
+; Hotkey: u = upload (viewing) or decrease arrow/number/rectangle size
 u::
 	global previewPBitmap, previewMode, screenshotFolder, previewSavedFilePath, previewHwnd
 
@@ -691,6 +735,13 @@ u::
 	; In number mode, decrease number size
 	if (previewMode = "number") {
 		ChangeNumberSize(-1)
+		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
+		return
+	}
+
+	; In rectangle mode, decrease rectangle size
+	if (previewMode = "rectangle") {
+		ChangeRectangleSize(-1)
 		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
 		return
 	}
@@ -752,47 +803,103 @@ return
 ShowPreviewHelp:
 	Gui, PreviewHelp:Destroy
 	Gui, PreviewHelp:+AlwaysOnTop +ToolWindow
-	Gui, PreviewHelp:Font, s10, Consolas
+	Gui, PreviewHelp:Color, 1e1e1e
+	Gui, PreviewHelp:Font, s11, Segoe UI
 
 	; Column 1: VIEWING MODE
-	Gui, PreviewHelp:Add, Text, x10 y10, === VIEWING ===
-	Gui, PreviewHelp:Add, Text, x10 y+5, f          Save file
-	Gui, PreviewHelp:Add, Text, x10 y+5, u          Upload
-	Gui, PreviewHelp:Add, Text, x10 y+5, Shift+U    Open URL
-	Gui, PreviewHelp:Add, Text, x10 y+5, c          Crop mode
-	Gui, PreviewHelp:Add, Text, x10 y+5, a          Arrow mode
-	Gui, PreviewHelp:Add, Text, x10 y+5, n          Number mode
-	Gui, PreviewHelp:Add, Text, x10 y+5, Esc        Close
+	Gui, PreviewHelp:Font, s11 cFFFFFF Bold, Segoe UI
+	Gui, PreviewHelp:Add, Text, x15 y15, VIEWING
+	Gui, PreviewHelp:Font, s10 Normal, Segoe UI
+	Gui, PreviewHelp:Add, Text, x15 y+10 c808080, f
+	Gui, PreviewHelp:Add, Text, x75 yp cE0E0E0, Save file
+	Gui, PreviewHelp:Add, Text, x15 y+5 c808080, u
+	Gui, PreviewHelp:Add, Text, x75 yp cE0E0E0, Upload
+	Gui, PreviewHelp:Add, Text, x15 y+5 c808080, Shift+U
+	Gui, PreviewHelp:Add, Text, x75 yp cE0E0E0, Open URL
+	Gui, PreviewHelp:Add, Text, x15 y+5 c808080, c
+	Gui, PreviewHelp:Add, Text, x75 yp cE0E0E0, Crop mode
+	Gui, PreviewHelp:Add, Text, x15 y+5 c808080, a
+	Gui, PreviewHelp:Add, Text, x75 yp cE0E0E0, Arrow mode
+	Gui, PreviewHelp:Add, Text, x15 y+5 c808080, n
+	Gui, PreviewHelp:Add, Text, x75 yp cE0E0E0, Number mode
+	Gui, PreviewHelp:Add, Text, x15 y+5 c808080, r
+	Gui, PreviewHelp:Add, Text, x75 yp cE0E0E0, Rect mode
+	Gui, PreviewHelp:Add, Text, x15 y+5 c808080, Esc
+	Gui, PreviewHelp:Add, Text, x75 yp cE0E0E0, Close
 
 	; Column 2: CROP MODE
-	Gui, PreviewHelp:Add, Text, x170 y10, === CROP ===
-	Gui, PreviewHelp:Add, Text, x170 y+5, hjkl      Shrink
-	Gui, PreviewHelp:Add, Text, x170 y+5, Shift     Extend
-	Gui, PreviewHelp:Add, Text, x170 y+5, Enter     Apply
-	Gui, PreviewHelp:Add, Text, x170 y+5, Esc       Cancel
+	Gui, PreviewHelp:Font, s11 cFFFFFF Bold, Segoe UI
+	Gui, PreviewHelp:Add, Text, x150 y15, CROP
+	Gui, PreviewHelp:Font, s10 Normal, Segoe UI
+	Gui, PreviewHelp:Add, Text, x150 y+10 c808080, hjkl
+	Gui, PreviewHelp:Add, Text, x195 yp cE0E0E0, Shrink
+	Gui, PreviewHelp:Add, Text, x150 y+5 c808080, Shift
+	Gui, PreviewHelp:Add, Text, x195 yp cE0E0E0, Extend
+	Gui, PreviewHelp:Add, Text, x150 y+5 c808080, Enter
+	Gui, PreviewHelp:Add, Text, x195 yp cE0E0E0, Apply
+	Gui, PreviewHelp:Add, Text, x150 y+5 c808080, Esc
+	Gui, PreviewHelp:Add, Text, x195 yp cE0E0E0, Cancel
 
 	; Column 3: ARROW MODE
-	Gui, PreviewHelp:Add, Text, x330 y10, === ARROW ===
-	Gui, PreviewHelp:Add, Text, x330 y+5, hjkl      Move
-	Gui, PreviewHelp:Add, Text, x330 y+5, Space     Set point
-	Gui, PreviewHelp:Add, Text, x330 y+5, c         Color
-	Gui, PreviewHelp:Add, Text, x330 y+5, i / u     Size
-	Gui, PreviewHelp:Add, Text, x330 y+5, z         Undo
-	Gui, PreviewHelp:Add, Text, x330 y+5, Enter     Apply
-	Gui, PreviewHelp:Add, Text, x330 y+5, Esc       Cancel
+	Gui, PreviewHelp:Font, s11 cFFFFFF Bold, Segoe UI
+	Gui, PreviewHelp:Add, Text, x270 y15, ARROW
+	Gui, PreviewHelp:Font, s10 Normal, Segoe UI
+	Gui, PreviewHelp:Add, Text, x270 y+10 c808080, hjkl
+	Gui, PreviewHelp:Add, Text, x320 yp cE0E0E0, Move
+	Gui, PreviewHelp:Add, Text, x270 y+5 c808080, Space
+	Gui, PreviewHelp:Add, Text, x320 yp cE0E0E0, Set point
+	Gui, PreviewHelp:Add, Text, x270 y+5 c808080, c
+	Gui, PreviewHelp:Add, Text, x320 yp cE0E0E0, Color
+	Gui, PreviewHelp:Add, Text, x270 y+5 c808080, i / u
+	Gui, PreviewHelp:Add, Text, x320 yp cE0E0E0, Size
+	Gui, PreviewHelp:Add, Text, x270 y+5 c808080, z
+	Gui, PreviewHelp:Add, Text, x320 yp cE0E0E0, Undo
+	Gui, PreviewHelp:Add, Text, x270 y+5 c808080, Enter
+	Gui, PreviewHelp:Add, Text, x320 yp cE0E0E0, Apply
+	Gui, PreviewHelp:Add, Text, x270 y+5 c808080, Esc
+	Gui, PreviewHelp:Add, Text, x320 yp cE0E0E0, Cancel
 
 	; Column 4: NUMBER MODE
-	Gui, PreviewHelp:Add, Text, x490 y10, === NUMBER ===
-	Gui, PreviewHelp:Add, Text, x490 y+5, hjkl      Move
-	Gui, PreviewHelp:Add, Text, x490 y+5, 1-0       Place 1-10
-	Gui, PreviewHelp:Add, Text, x490 y+5, c         Color
-	Gui, PreviewHelp:Add, Text, x490 y+5, i / u     Size
-	Gui, PreviewHelp:Add, Text, x490 y+5, z         Undo
-	Gui, PreviewHelp:Add, Text, x490 y+5, Enter     Apply
-	Gui, PreviewHelp:Add, Text, x490 y+5, Esc       Cancel
+	Gui, PreviewHelp:Font, s11 cFFFFFF Bold, Segoe UI
+	Gui, PreviewHelp:Add, Text, x390 y15, NUMBER
+	Gui, PreviewHelp:Font, s10 Normal, Segoe UI
+	Gui, PreviewHelp:Add, Text, x390 y+10 c808080, hjkl
+	Gui, PreviewHelp:Add, Text, x440 yp cE0E0E0, Move
+	Gui, PreviewHelp:Add, Text, x390 y+5 c808080, 1-0
+	Gui, PreviewHelp:Add, Text, x440 yp cE0E0E0, Place 1-10
+	Gui, PreviewHelp:Add, Text, x390 y+5 c808080, c
+	Gui, PreviewHelp:Add, Text, x440 yp cE0E0E0, Color
+	Gui, PreviewHelp:Add, Text, x390 y+5 c808080, i / u
+	Gui, PreviewHelp:Add, Text, x440 yp cE0E0E0, Size
+	Gui, PreviewHelp:Add, Text, x390 y+5 c808080, z
+	Gui, PreviewHelp:Add, Text, x440 yp cE0E0E0, Undo
+	Gui, PreviewHelp:Add, Text, x390 y+5 c808080, Enter
+	Gui, PreviewHelp:Add, Text, x440 yp cE0E0E0, Apply
+	Gui, PreviewHelp:Add, Text, x390 y+5 c808080, Esc
+	Gui, PreviewHelp:Add, Text, x440 yp cE0E0E0, Cancel
+
+	; Column 5: RECTANGLE MODE
+	Gui, PreviewHelp:Font, s11 cFFFFFF Bold, Segoe UI
+	Gui, PreviewHelp:Add, Text, x510 y15, RECT
+	Gui, PreviewHelp:Font, s10 Normal, Segoe UI
+	Gui, PreviewHelp:Add, Text, x510 y+10 c808080, hjkl
+	Gui, PreviewHelp:Add, Text, x560 yp cE0E0E0, Move
+	Gui, PreviewHelp:Add, Text, x510 y+5 c808080, Space
+	Gui, PreviewHelp:Add, Text, x560 yp cE0E0E0, Set corner
+	Gui, PreviewHelp:Add, Text, x510 y+5 c808080, c
+	Gui, PreviewHelp:Add, Text, x560 yp cE0E0E0, Color
+	Gui, PreviewHelp:Add, Text, x510 y+5 c808080, i / u
+	Gui, PreviewHelp:Add, Text, x560 yp cE0E0E0, Size
+	Gui, PreviewHelp:Add, Text, x510 y+5 c808080, z
+	Gui, PreviewHelp:Add, Text, x560 yp cE0E0E0, Undo
+	Gui, PreviewHelp:Add, Text, x510 y+5 c808080, Enter
+	Gui, PreviewHelp:Add, Text, x560 yp cE0E0E0, Apply
+	Gui, PreviewHelp:Add, Text, x510 y+5 c808080, Esc
+	Gui, PreviewHelp:Add, Text, x560 yp cE0E0E0, Cancel
 
 	; Footer
-	Gui, PreviewHelp:Add, Text, x10 y+20, Press F1 or Esc to close
+	Gui, PreviewHelp:Font, s9 c606060 Normal, Segoe UI
+	Gui, PreviewHelp:Add, Text, x15 y+20, Press F1 or Esc to close
 	Gui, PreviewHelp:Show, , Preview Shortcuts
 	previewHelpOpen := 1
 return

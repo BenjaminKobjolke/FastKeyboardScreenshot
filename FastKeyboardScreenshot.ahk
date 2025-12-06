@@ -12,6 +12,7 @@
 #Include %A_ScriptDir%\lib\crop.ahk
 #Include %A_ScriptDir%\lib\arrow.ahk
 #Include %A_ScriptDir%\lib\number.ahk
+#Include %A_ScriptDir%\lib\rectangle.ahk
 #Include %A_ScriptDir%\lib\status_bar.ahk
 #Include %A_ScriptDir%\lib\FTP_Upload.ahk
 #Include %A_ScriptDir%\github_modules\RapidOCR-AutoHotkey\RapidOCR\RapidOCR.ahk
@@ -90,6 +91,14 @@ numbers := []  ; Array of placed numbers
 numberSize := 24  ; Circle diameter
 numberColorIndex := 0  ; Color index (shares arrowColors palette)
 
+; Global variables for rectangle mode
+rectangles := []  ; Array of drawn rectangles
+rectSize := 3  ; Line thickness (1-20)
+rectColorIndex := 0  ; Color index (shares arrowColors palette)
+rectSettingStart := 0  ; 0 = not setting, 1 = setting first corner
+rectStartX := 0
+rectStartY := 0
+
 ; Global variables for text preview window
 textPreviewHwnd := 0
 
@@ -138,6 +147,14 @@ if (numberColorIndex >= arrowColors.Length())
 IniRead, numberSize, %A_ScriptDir%\settings.ini, Number, Size, 24
 if (numberSize < 12 || numberSize > 60)
     numberSize := 24
+
+; Load rectangle preferences from settings
+IniRead, rectColorIndex, %A_ScriptDir%\settings.ini, Rectangle, ColorIndex, 0
+if (rectColorIndex >= arrowColors.Length())
+    rectColorIndex := 0
+IniRead, rectSize, %A_ScriptDir%\settings.ini, Rectangle, Size, 3
+if (rectSize < 1 || rectSize > 20)
+    rectSize := 3
 
 ; Set tray icon
 if (!a_iscompiled) {
