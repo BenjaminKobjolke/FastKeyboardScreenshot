@@ -77,6 +77,7 @@ The preview window supports multiple editing modes. Press F1 in the preview wind
 - **c** - Enter crop mode
 - **a** - Enter arrow mode
 - **n** - Enter number mode
+- **r** - Enter rectangle mode
 - **Esc** - Close window (or cancel current mode)
 
 **Crop Mode:**
@@ -106,6 +107,18 @@ Add numbered circle annotations (callouts) to your screenshot.
 - Press Esc to cancel
 
 Number color and size are saved to settings.ini.
+
+**Rectangle Mode:**
+Draw rectangle outlines on your screenshot to highlight areas.
+- Use hjkl or arrow keys to move cursor (Shift for faster)
+- Press Space to set first corner, then Space again to set opposite corner
+- Press c to cycle color (red/blue/green/yellow/black)
+- Press i/u to increase/decrease line thickness
+- Press z to undo the last rectangle
+- Press Enter to apply rectangles to image
+- Press Esc to cancel
+
+Rectangle color and size are saved to settings.ini.
 
 #### Capture active window
 

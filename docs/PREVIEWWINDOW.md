@@ -1,7 +1,7 @@
 # Preview Window Documentation
 
 ## Overview
-The preview window displays captured screenshots and provides editing capabilities including cropping, arrow annotations, and numbered callouts.
+The preview window displays captured screenshots and provides editing capabilities including cropping, arrow annotations, numbered callouts, and rectangle highlights.
 
 ## Files
 | File | Purpose |
@@ -10,6 +10,7 @@ The preview window displays captured screenshots and provides editing capabiliti
 | `lib/crop.ahk` | Crop mode functions (overlay, crop logic) |
 | `lib/arrow.ahk` | Arrow mode functions (drawing, cursor, apply) |
 | `lib/number.ahk` | Number mode functions (circle annotations) |
+| `lib/rectangle.ahk` | Rectangle mode functions (outline drawing) |
 | `lib/status_bar.ahk` | Status bar rendering for all modes |
 | `lib/image.ahk` | Image saving functions (SaveGdipBitmap, etc.) |
 
@@ -58,6 +59,18 @@ The preview window displays captured screenshots and provides editing capabiliti
 - Press `Esc` to cancel and discard numbers
 - Settings saved: `numberColorIndex`, `numberSize`
 
+### Rectangle Mode
+- Press `r` to enter rectangle mode
+- Cursor starts at mouse position
+- Move cursor with `hjkl` or arrow keys (Shift for 5x speed)
+- Press `Space` to set first corner, move, `Space` again for opposite corner
+- Press `c` to cycle colors (red/blue/green/yellow/black)
+- Press `i`/`u` to increase/decrease line thickness
+- Press `z` to undo last rectangle
+- Press `Enter` to apply rectangles to image
+- Press `Esc` to cancel and discard rectangles
+- Settings saved: `rectColorIndex`, `rectSize`
+
 ### Hotkeys (when preview window is active)
 | Key | Mode | Action |
 |-----|------|--------|
@@ -68,25 +81,27 @@ The preview window displays captured screenshots and provides editing capabiliti
 | `c` | Viewing | Enter crop mode |
 | `a` | Viewing | Enter arrow mode |
 | `n` | Viewing | Enter number mode |
+| `r` | Viewing | Enter rectangle mode |
 | `hjkl` / Arrows | Crop | Shrink from edge |
 | `Shift` + above | Crop | Extend edge |
-| `hjkl` / Arrows | Arrow/Number | Move cursor |
-| `Shift` + above | Arrow/Number | Move cursor faster (5x) |
-| `Space` | Arrow | Set start/end point |
+| `hjkl` / Arrows | Arrow/Number/Rect | Move cursor |
+| `Shift` + above | Arrow/Number/Rect | Move cursor faster (5x) |
+| `Space` | Arrow/Rect | Set start/end point or corner |
 | `1-9`, `0` | Number | Place number 1-10 |
-| `c` | Arrow/Number | Cycle color |
-| `i` | Arrow/Number | Increase size |
-| `u` | Arrow/Number | Decrease size |
-| `z` | Arrow/Number | Undo last arrow/number |
-| `Enter` | Crop/Arrow/Number | Apply changes |
+| `c` | Arrow/Number/Rect | Cycle color |
+| `i` | Arrow/Number/Rect | Increase size |
+| `u` | Arrow/Number/Rect | Decrease size |
+| `z` | Arrow/Number/Rect | Undo last annotation |
+| `Enter` | Crop/Arrow/Number/Rect | Apply changes |
 | `Esc` | Any | Cancel mode / Close window |
 
 ## Status Bar
 Bottom of window shows current mode and available actions:
-- Viewing: `[Viewing]  a:arrow  n:number  c:crop  f:save  u:upload  Esc:close`
+- Viewing: `[Viewing]  a:arrow  n:number  r:rect  c:crop  f:save  u:upload  Esc:close`
 - Crop: `[Crop]  hjkl:adjust  Shift:extend  Enter:apply  Esc:cancel`
 - Arrow: `[Arrow:Red]  hjkl:move  Space:set  u/i:size  c:color  z:undo  Enter:apply  Esc:cancel`
 - Number: `[Number:Red]  hjkl:move  1-0:place  u/i:size  c:color  z:undo  Enter:apply  Esc:cancel`
+- Rectangle: `[Rect:Red]  hjkl:move  Space:set  u/i:size  c:color  z:undo  Enter:apply  Esc:cancel`
 
 ## Global Variables
 ```ahk
@@ -100,7 +115,7 @@ previewTempFile := ""         ; Temp file path
 previewSavedFilePath := ""    ; Saved file path for overwrite
 
 ; Mode state
-previewMode := "viewing"      ; "viewing", "crop", "arrow", or "number"
+previewMode := "viewing"      ; "viewing", "crop", "arrow", "number", or "rectangle"
 
 ; Crop mode state
 cropLeft := 0
@@ -126,6 +141,14 @@ arrowMoveStep := 10           ; Pixels per keypress
 numbers := []                 ; Array of {x, y, num, color, size}
 numberSize := 24              ; Saved to settings.ini
 numberColorIndex := 0         ; Saved to settings.ini (shares arrowColors palette)
+
+; Rectangle mode state
+rectangles := []              ; Array of {x1, y1, x2, y2, color, size}
+rectSize := 3                 ; Saved to settings.ini
+rectColorIndex := 0           ; Saved to settings.ini (shares arrowColors palette)
+rectSettingStart := 0         ; 0 = not setting, 1 = setting first corner
+rectStartX := 0
+rectStartY := 0
 ```
 
 ## Key Functions
@@ -157,12 +180,22 @@ numberColorIndex := 0         ; Saved to settings.ini (shares arrowColors palett
 ### number.ahk
 - `DrawNumberCircle(pGraphics, x, y, num, color, size)` - Draws filled circle with number
 - `DrawNumbersOverlay(pGraphics, offsetX, offsetY, scaledWidth, scaledHeight)` - Draws all numbers + cursor
-- `DrawNumberCursor(pGraphics, x, y)` - Draws crosshair cursor
+- `DrawNumberCursor(pGraphics, x, y, size)` - Draws crosshair cursor with size indication
 - `ApplyNumbers()` - Permanently applies numbers to bitmap
 - `ResetNumberState()` - Resets to viewing mode
 - `AddNumber(num)` - Adds number at cursor position
 - `CycleNumberColor()` - Cycles color and saves to settings
 - `ChangeNumberSize(delta)` - Changes size and saves to settings
+
+### rectangle.ahk
+- `DrawRectangle(pGraphics, x1, y1, x2, y2, color, size)` - Draws rectangle outline
+- `DrawRectanglesOverlay(pGraphics, offsetX, offsetY, scaledWidth, scaledHeight)` - Draws all rectangles + cursor
+- `DrawRectangleCursor(pGraphics, x, y, size)` - Draws crosshair cursor with size indication
+- `ApplyRectangles()` - Permanently applies rectangles to bitmap
+- `ResetRectangleState()` - Resets to viewing mode
+- `SetRectanglePoint()` - Sets first or second corner
+- `CycleRectangleColor()` - Cycles color and saves to settings
+- `ChangeRectangleSize(delta)` - Changes size and saves to settings
 
 ### status_bar.ahk
 - `DrawStatusBar(pGraphics, width, height)` - Draws mode-specific status bar
@@ -187,6 +220,10 @@ Size=3          ; Arrow pen width (1-20)
 [Number]
 ColorIndex=0    ; 0=Red, 1=Blue, 2=Green, 3=Yellow, 4=Black
 Size=24         ; Circle diameter (12-60)
+
+[Rectangle]
+ColorIndex=0    ; 0=Red, 1=Blue, 2=Green, 3=Yellow, 4=Black
+Size=3          ; Line thickness (1-20)
 ```
 
 ## Technical Notes
