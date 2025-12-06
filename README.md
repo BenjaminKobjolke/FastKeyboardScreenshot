@@ -67,6 +67,46 @@ Press ESC or click the X button to close the preview window.
 The screenshot will also be copied to the clipboard as usual.
 The window position and size are saved automatically.
 
+**Preview Window Features:**
+
+The preview window supports multiple editing modes. Press F1 in the preview window to see all shortcuts.
+
+- **f** - Save screenshot to file
+- **u** - Upload screenshot
+- **Shift+U** - Open last uploaded URL in browser
+- **c** - Enter crop mode
+- **a** - Enter arrow mode
+- **n** - Enter number mode
+- **Esc** - Close window (or cancel current mode)
+
+**Crop Mode:**
+- Use hjkl or arrow keys to shrink from edges
+- Hold Shift to extend edges outward
+- Press Enter to apply crop
+- Press Esc to cancel
+
+**Arrow Mode:**
+Draw arrows on your screenshot to highlight areas.
+- Use hjkl or arrow keys to move cursor (Shift for faster)
+- Press Space to set start point, then Space again to set end point
+- Press c to cycle arrow color (red/blue/green/yellow/black)
+- Press i/u to increase/decrease arrow size
+- Press Enter to apply arrows to image
+- Press Esc to cancel
+
+Arrow color and size are saved to settings.ini.
+
+**Number Mode:**
+Add numbered circle annotations (callouts) to your screenshot.
+- Use hjkl or arrow keys to move cursor (Shift for faster)
+- Press 1-9 to place numbers 1-9, press 0 to place number 10
+- Press c to cycle color (red/blue/green/yellow/black)
+- Press i/u to increase/decrease circle size
+- Press Enter to apply numbers to image
+- Press Esc to cancel
+
+Number color and size are saved to settings.ini.
+
 #### Capture active window
 
 Press a during the screenshot process to capture the active window immediately.
