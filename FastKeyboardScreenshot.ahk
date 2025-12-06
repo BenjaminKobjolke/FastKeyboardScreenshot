@@ -10,6 +10,9 @@
 #Include %A_ScriptDir%\lib\image.ahk
 #Include %A_ScriptDir%\lib\capture.ahk
 #Include %A_ScriptDir%\lib\crop.ahk
+#Include %A_ScriptDir%\lib\arrow.ahk
+#Include %A_ScriptDir%\lib\number.ahk
+#Include %A_ScriptDir%\lib\status_bar.ahk
 #Include %A_ScriptDir%\lib\FTP_Upload.ahk
 #Include %A_ScriptDir%\github_modules\RapidOCR-AutoHotkey\RapidOCR\RapidOCR.ahk
 
@@ -62,15 +65,36 @@ previewTempFile := ""
 previewSavedFilePath := ""  ; Track saved file for overwrite
 
 ; Global variables for crop mode
-previewMode := "viewing"  ; "viewing" or "crop"
+previewMode := "viewing"  ; "viewing", "crop", or "arrow"
 cropLeft := 0
 cropTop := 0
 cropRight := 0
 cropBottom := 0
 cropStep := 10  ; Pixels per keypress
 
+; Global variables for arrow mode
+arrowCursorX := 0
+arrowCursorY := 0
+arrowStartX := 0
+arrowStartY := 0
+arrowSettingStart := 0  ; 0 = not setting, 1 = setting start point
+arrowSize := 3
+arrowColorIndex := 0
+arrowColors := [0xFFFF0000, 0xFF0000FF, 0xFF00FF00, 0xFFFFFF00, 0xFF000000]  ; red, blue, green, yellow, black
+arrowColorNames := ["Red", "Blue", "Green", "Yellow", "Black"]
+arrows := []  ; Array of drawn arrows
+arrowMoveStep := 10  ; Pixels per keypress
+
+; Global variables for number mode
+numbers := []  ; Array of placed numbers
+numberSize := 24  ; Circle diameter
+numberColorIndex := 0  ; Color index (shares arrowColors palette)
+
 ; Global variables for text preview window
 textPreviewHwnd := 0
+
+; Global variable for preview help window
+previewHelpOpen := 0
 
 ; Global variables for action tooltips (FTP upload and OCR)
 lastUploadedUrl := ""
@@ -98,6 +122,22 @@ if (sharexPath = "NOT_FOUND" && sharexNotFound = 0) {
     ; ShareX was previously not found, set path to empty
     sharexPath := ""
 }
+
+; Load arrow preferences from settings
+IniRead, arrowColorIndex, %A_ScriptDir%\settings.ini, Arrow, ColorIndex, 0
+if (arrowColorIndex >= arrowColors.Length())
+    arrowColorIndex := 0
+IniRead, arrowSize, %A_ScriptDir%\settings.ini, Arrow, Size, 3
+if (arrowSize < 1 || arrowSize > 20)
+    arrowSize := 3
+
+; Load number preferences from settings
+IniRead, numberColorIndex, %A_ScriptDir%\settings.ini, Number, ColorIndex, 0
+if (numberColorIndex >= arrowColors.Length())
+    numberColorIndex := 0
+IniRead, numberSize, %A_ScriptDir%\settings.ini, Number, Size, 24
+if (numberSize < 12 || numberSize > 60)
+    numberSize := 24
 
 ; Set tray icon
 if (!a_iscompiled) {

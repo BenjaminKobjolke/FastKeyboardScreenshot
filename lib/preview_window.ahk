@@ -78,13 +78,18 @@ ImageViewPaint(wParam, lParam, msg, hwnd)
 	width := NumGet(rect, 8, "int")
 	height := NumGet(rect, 12, "int")
 
+	; Create off-screen buffer for double buffering (prevents flickering)
+	hdcBuffer := DllCall("CreateCompatibleDC", "ptr", hdc, "ptr")
+	hBitmap := DllCall("CreateCompatibleBitmap", "ptr", hdc, "int", width, "int", height, "ptr")
+	hOldBitmap := DllCall("SelectObject", "ptr", hdcBuffer, "ptr", hBitmap, "ptr")
+
 	; Leave space for top and bottom status bars
 	topBarHeight := 30
 	bottomBarHeight := 45
 	availHeight := height - topBarHeight - bottomBarHeight
 
-	; Create GDI+ graphics from the paint DC
-	pGraphics := Gdip_GraphicsFromHDC(hdc)
+	; Create GDI+ graphics from buffer DC
+	pGraphics := Gdip_GraphicsFromHDC(hdcBuffer)
 	Gdip_SetInterpolationMode(pGraphics, 7) ; High quality
 
 	; Clear background with dark color
@@ -122,13 +127,37 @@ ImageViewPaint(wParam, lParam, msg, hwnd)
 	if (previewMode = "crop")
 		DrawCropOverlay(pGraphics, offsetX, offsetY, scaledWidth, scaledHeight)
 
+	; Draw arrows overlay if in arrow mode
+	if (previewMode = "arrow")
+		DrawArrowsOverlay(pGraphics, offsetX, offsetY, scaledWidth, scaledHeight)
+
+	; Draw numbers overlay if in number mode
+	if (previewMode = "number")
+		DrawNumbersOverlay(pGraphics, offsetX, offsetY, scaledWidth, scaledHeight)
+
 	; Draw status bars
 	DrawStatusBar(pGraphics, width, height)
 	DrawTopStatusBar(pGraphics, width)
 
-	; Cleanup
+	; Cleanup GDI+
 	Gdip_DeleteGraphics(pGraphics)
+
+	; Copy buffer to screen in one operation (no flicker)
+	DllCall("BitBlt", "ptr", hdc, "int", 0, "int", 0, "int", width, "int", height, "ptr", hdcBuffer, "int", 0, "int", 0, "uint", 0x00CC0020) ; SRCCOPY
+
+	; Cleanup buffer
+	DllCall("SelectObject", "ptr", hdcBuffer, "ptr", hOldBitmap)
+	DllCall("DeleteObject", "ptr", hBitmap)
+	DllCall("DeleteDC", "ptr", hdcBuffer)
+
 	DllCall("EndPaint", "ptr", hwnd, "ptr", &ps)
+}
+
+; Handle WM_ERASEBKGND - return 1 to prevent Windows from erasing background (prevents flicker)
+ImageViewEraseBkgnd(wParam, lParam, msg, hwnd) {
+	global previewHwnd
+	if (hwnd = previewHwnd)
+		return 1  ; Tell Windows we handled it, don't erase
 }
 
 ShowImageWindow(tempFile, nW, nH, resizeBy = 1)
@@ -141,8 +170,9 @@ ShowImageWindow(tempFile, nW, nH, resizeBy = 1)
 		; Destroy the window first
 		Gui, ImageView:Destroy
 
-		; Unregister WM_PAINT handler
+		; Unregister message handlers
 		OnMessage(0x000F, "ImageViewPaint", 0)
+		OnMessage(0x0014, "ImageViewEraseBkgnd", 0)
 
 		; Cleanup GDI+ bitmap
 		if (previewPBitmap)
@@ -182,11 +212,12 @@ ShowImageWindow(tempFile, nW, nH, resizeBy = 1)
 
 	; Create GUI to display the image with dark theme
 	Gui, ImageView:Destroy
-	Gui, ImageView:+Resize +AlwaysOnTop +HWNDpreviewHwnd
+	Gui, ImageView:+Resize +HWNDpreviewHwnd
 	Gui, ImageView:Color, 1e1e1e
 
-	; Register WM_PAINT handler
+	; Register message handlers
 	OnMessage(0x000F, "ImageViewPaint")
+	OnMessage(0x0014, "ImageViewEraseBkgnd")  ; Prevent background erase flicker
 
 	; Show window at saved position or centered
 	if (savedX = "Center" || savedY = "Center")
@@ -222,8 +253,9 @@ ImageViewGuiClose:
 	IniWrite, %winX%, %A_ScriptDir%\settings.ini, PreviewWindow, X
 	IniWrite, %winY%, %A_ScriptDir%\settings.ini, PreviewWindow, Y
 
-	; Unregister WM_PAINT handler
+	; Unregister message handlers
 	OnMessage(0x000F, "ImageViewPaint", 0)
+	OnMessage(0x0014, "ImageViewEraseBkgnd", 0)
 
 	; Cleanup GDI+ bitmap
 	if (previewPBitmap)
@@ -254,6 +286,20 @@ Esc::
 		return
 	}
 
+	; If in arrow mode, just exit to viewing mode (discard arrows)
+	if (previewMode = "arrow") {
+		ResetArrowState()
+		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
+		return
+	}
+
+	; If in number mode, just exit to viewing mode (discard numbers)
+	if (previewMode = "number") {
+		ResetNumberState()
+		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
+		return
+	}
+
 	; Save window position and size
 	WinGetPos, winX, winY, winWidth, winHeight, Screenshot Preview
 	IniWrite, %winWidth%, %A_ScriptDir%\settings.ini, PreviewWindow, Width
@@ -261,8 +307,9 @@ Esc::
 	IniWrite, %winX%, %A_ScriptDir%\settings.ini, PreviewWindow, X
 	IniWrite, %winY%, %A_ScriptDir%\settings.ini, PreviewWindow, Y
 
-	; Unregister WM_PAINT handler
+	; Unregister message handlers
 	OnMessage(0x000F, "ImageViewPaint", 0)
+	OnMessage(0x0014, "ImageViewEraseBkgnd", 0)
 
 	; Cleanup GDI+ bitmap
 	if (previewPBitmap)
@@ -281,7 +328,30 @@ Esc::
 	Gui, ImageView:Destroy
 return
 
-; Enter crop mode
+; Enter arrow mode
+a::
+	global previewMode, previewHwnd, arrowSettingStart, arrows
+	if (previewMode = "viewing") {
+		previewMode := "arrow"
+		arrowSettingStart := 0
+		arrows := []
+		SetArrowCursorFromMouse()
+		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
+	}
+return
+
+; Enter number mode
+n::
+	global previewMode, previewHwnd, numbers
+	if (previewMode = "viewing") {
+		previewMode := "number"
+		numbers := []
+		SetArrowCursorFromMouse()
+		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
+	}
+return
+
+; Enter crop mode / Cycle arrow/number color
 c::
 	global previewMode, previewHwnd, cropLeft, cropTop, cropRight, cropBottom
 	if (previewMode = "viewing") {
@@ -291,95 +361,254 @@ c::
 		cropRight := 0
 		cropBottom := 0
 		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
+	} else if (previewMode = "arrow") {
+		CycleArrowColor()
+		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
+	} else if (previewMode = "number") {
+		CycleNumberColor()
+		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
 	}
 return
 
-; Crop adjustments - shrink from left
+; Movement - left (crop: shrink, arrow/number: move cursor)
 h::
 Left::
-	global previewMode, cropStep, previewHwnd
+	global previewMode, cropStep, arrowMoveStep, previewHwnd
 	if (previewMode = "crop") {
 		AdjustCropEdge("left", cropStep)
 		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
+	} else if (previewMode = "arrow" || previewMode = "number") {
+		MoveArrowCursor(-arrowMoveStep, 0)
+		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
 	}
 return
 
-; Crop adjustments - extend left (Shift)
+; Movement - extend left (Shift) / fast move arrow/number cursor
 +h::
 +Left::
-	global previewMode, cropStep, previewHwnd
+	global previewMode, cropStep, arrowMoveStep, previewHwnd
 	if (previewMode = "crop") {
 		AdjustCropEdge("left", -cropStep)
 		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
+	} else if (previewMode = "arrow" || previewMode = "number") {
+		MoveArrowCursor(-arrowMoveStep * 5, 0)
+		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
 	}
 return
 
-; Crop adjustments - shrink from right
+; Movement - right (crop: shrink, arrow/number: move cursor)
 l::
 Right::
-	global previewMode, cropStep, previewHwnd
+	global previewMode, cropStep, arrowMoveStep, previewHwnd
 	if (previewMode = "crop") {
 		AdjustCropEdge("right", cropStep)
 		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
+	} else if (previewMode = "arrow" || previewMode = "number") {
+		MoveArrowCursor(arrowMoveStep, 0)
+		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
 	}
 return
 
-; Crop adjustments - extend right (Shift)
+; Movement - extend right (Shift) / fast move arrow/number cursor
 +l::
 +Right::
-	global previewMode, cropStep, previewHwnd
+	global previewMode, cropStep, arrowMoveStep, previewHwnd
 	if (previewMode = "crop") {
 		AdjustCropEdge("right", -cropStep)
 		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
+	} else if (previewMode = "arrow" || previewMode = "number") {
+		MoveArrowCursor(arrowMoveStep * 5, 0)
+		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
 	}
 return
 
-; Crop adjustments - shrink from top
+; Movement - up (crop: shrink, arrow/number: move cursor)
 k::
 Up::
-	global previewMode, cropStep, previewHwnd
+	global previewMode, cropStep, arrowMoveStep, previewHwnd
 	if (previewMode = "crop") {
 		AdjustCropEdge("top", cropStep)
 		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
+	} else if (previewMode = "arrow" || previewMode = "number") {
+		MoveArrowCursor(0, -arrowMoveStep)
+		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
 	}
 return
 
-; Crop adjustments - extend top (Shift)
+; Movement - extend top (Shift) / fast move arrow/number cursor
 +k::
 +Up::
-	global previewMode, cropStep, previewHwnd
+	global previewMode, cropStep, arrowMoveStep, previewHwnd
 	if (previewMode = "crop") {
 		AdjustCropEdge("top", -cropStep)
 		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
+	} else if (previewMode = "arrow" || previewMode = "number") {
+		MoveArrowCursor(0, -arrowMoveStep * 5)
+		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
 	}
 return
 
-; Crop adjustments - shrink from bottom
+; Movement - down (crop: shrink, arrow/number: move cursor)
 j::
 Down::
-	global previewMode, cropStep, previewHwnd
+	global previewMode, cropStep, arrowMoveStep, previewHwnd
 	if (previewMode = "crop") {
 		AdjustCropEdge("bottom", cropStep)
 		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
-	}
-return
-
-; Crop adjustments - extend bottom (Shift)
-+j::
-+Down::
-	global previewMode, cropStep, previewHwnd
-	if (previewMode = "crop") {
-		AdjustCropEdge("bottom", -cropStep)
+	} else if (previewMode = "arrow" || previewMode = "number") {
+		MoveArrowCursor(0, arrowMoveStep)
 		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
 	}
 return
 
-; Apply crop
+; Movement - extend bottom (Shift) / fast move arrow/number cursor
++j::
++Down::
+	global previewMode, cropStep, arrowMoveStep, previewHwnd
+	if (previewMode = "crop") {
+		AdjustCropEdge("bottom", -cropStep)
+		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
+	} else if (previewMode = "arrow" || previewMode = "number") {
+		MoveArrowCursor(0, arrowMoveStep * 5)
+		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
+	}
+return
+
+; Apply (crop, arrows, or numbers)
 Enter::
-	global previewMode, previewHwnd
+	global previewMode, previewHwnd, arrowSettingStart
 	if (previewMode = "crop") {
 		ApplyCrop()
 		previewMode := "viewing"
+		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
+	} else if (previewMode = "arrow") {
+		; Finish in-progress arrow first if start point was set
+		if (arrowSettingStart = 1)
+			SetArrowPoint()
+		ApplyArrows()
+		previewMode := "viewing"
+		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
+	} else if (previewMode = "number") {
+		ApplyNumbers()
+		previewMode := "viewing"
+		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
+	}
+return
+
+; Set arrow point (Space)
+Space::
+	global previewMode, previewHwnd
+	if (previewMode = "arrow") {
+		SetArrowPoint()
+		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
+	}
+return
+
+; Increase arrow/number size
+i::
+	global previewMode, previewHwnd
+	if (previewMode = "arrow") {
+		ChangeArrowSize(1)
+		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
+	} else if (previewMode = "number") {
+		ChangeNumberSize(1)
+		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
+	}
+return
+
+; Undo last arrow/number
+z::
+	global previewMode, previewHwnd, arrows, numbers
+	if (previewMode = "arrow") {
+		if (arrows.Length() > 0) {
+			arrows.Pop()
+			DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
+		}
+	} else if (previewMode = "number") {
+		if (numbers.Length() > 0) {
+			numbers.Pop()
+			DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
+		}
+	}
+return
+
+; Number keys 1-9 for placing numbers in number mode
+1::
+	global previewMode, previewHwnd
+	if (previewMode = "number") {
+		AddNumber(1)
+		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
+	}
+return
+
+2::
+	global previewMode, previewHwnd
+	if (previewMode = "number") {
+		AddNumber(2)
+		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
+	}
+return
+
+3::
+	global previewMode, previewHwnd
+	if (previewMode = "number") {
+		AddNumber(3)
+		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
+	}
+return
+
+4::
+	global previewMode, previewHwnd
+	if (previewMode = "number") {
+		AddNumber(4)
+		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
+	}
+return
+
+5::
+	global previewMode, previewHwnd
+	if (previewMode = "number") {
+		AddNumber(5)
+		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
+	}
+return
+
+6::
+	global previewMode, previewHwnd
+	if (previewMode = "number") {
+		AddNumber(6)
+		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
+	}
+return
+
+7::
+	global previewMode, previewHwnd
+	if (previewMode = "number") {
+		AddNumber(7)
+		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
+	}
+return
+
+8::
+	global previewMode, previewHwnd
+	if (previewMode = "number") {
+		AddNumber(8)
+		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
+	}
+return
+
+9::
+	global previewMode, previewHwnd
+	if (previewMode = "number") {
+		AddNumber(9)
+		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
+	}
+return
+
+0::
+	global previewMode, previewHwnd
+	if (previewMode = "number") {
+		AddNumber(10)
 		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
 	}
 return
@@ -448,11 +677,25 @@ f::
 	}
 return
 
-; Hotkey to upload the screenshot from preview window (viewing mode only)
+; Hotkey: u = upload (viewing) or decrease arrow/number size
 u::
-	global previewPBitmap, previewMode, screenshotFolder, previewSavedFilePath
+	global previewPBitmap, previewMode, screenshotFolder, previewSavedFilePath, previewHwnd
 
-	; Only work in viewing mode
+	; In arrow mode, decrease arrow size
+	if (previewMode = "arrow") {
+		ChangeArrowSize(-1)
+		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
+		return
+	}
+
+	; In number mode, decrease number size
+	if (previewMode = "number") {
+		ChangeNumberSize(-1)
+		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
+		return
+	}
+
+	; Only work in viewing mode for upload
 	if (previewMode != "viewing")
 		return
 
@@ -479,5 +722,84 @@ u::
 	}
 
 	UploadFile(fullFilePath)
+return
+
+; Hotkey: Shift+U = open last uploaded URL in browser (viewing mode only)
++u::
+	global previewMode, lastUploadedUrl
+	if (previewMode = "viewing" && lastUploadedUrl != "") {
+		Run, %lastUploadedUrl%
+	} else if (previewMode = "viewing") {
+		MsgBox, 48, No Upload, No image has been uploaded yet.
+	}
+return
+
+RemovePreviewToolTip:
+	ToolTip
+return
+
+; Hotkey: F1 = show preview help window
+F1::
+	global previewHelpOpen
+	if (previewHelpOpen = 1) {
+		Gui, PreviewHelp:Destroy
+		previewHelpOpen := 0
+	} else {
+		GoSub, ShowPreviewHelp
+	}
+return
+
+ShowPreviewHelp:
+	Gui, PreviewHelp:Destroy
+	Gui, PreviewHelp:+AlwaysOnTop +ToolWindow
+	Gui, PreviewHelp:Font, s10, Consolas
+
+	; Column 1: VIEWING MODE
+	Gui, PreviewHelp:Add, Text, x10 y10, === VIEWING ===
+	Gui, PreviewHelp:Add, Text, x10 y+5, f          Save file
+	Gui, PreviewHelp:Add, Text, x10 y+5, u          Upload
+	Gui, PreviewHelp:Add, Text, x10 y+5, Shift+U    Open URL
+	Gui, PreviewHelp:Add, Text, x10 y+5, c          Crop mode
+	Gui, PreviewHelp:Add, Text, x10 y+5, a          Arrow mode
+	Gui, PreviewHelp:Add, Text, x10 y+5, n          Number mode
+	Gui, PreviewHelp:Add, Text, x10 y+5, Esc        Close
+
+	; Column 2: CROP MODE
+	Gui, PreviewHelp:Add, Text, x170 y10, === CROP ===
+	Gui, PreviewHelp:Add, Text, x170 y+5, hjkl      Shrink
+	Gui, PreviewHelp:Add, Text, x170 y+5, Shift     Extend
+	Gui, PreviewHelp:Add, Text, x170 y+5, Enter     Apply
+	Gui, PreviewHelp:Add, Text, x170 y+5, Esc       Cancel
+
+	; Column 3: ARROW MODE
+	Gui, PreviewHelp:Add, Text, x330 y10, === ARROW ===
+	Gui, PreviewHelp:Add, Text, x330 y+5, hjkl      Move
+	Gui, PreviewHelp:Add, Text, x330 y+5, Space     Set point
+	Gui, PreviewHelp:Add, Text, x330 y+5, c         Color
+	Gui, PreviewHelp:Add, Text, x330 y+5, i / u     Size
+	Gui, PreviewHelp:Add, Text, x330 y+5, z         Undo
+	Gui, PreviewHelp:Add, Text, x330 y+5, Enter     Apply
+	Gui, PreviewHelp:Add, Text, x330 y+5, Esc       Cancel
+
+	; Column 4: NUMBER MODE
+	Gui, PreviewHelp:Add, Text, x490 y10, === NUMBER ===
+	Gui, PreviewHelp:Add, Text, x490 y+5, hjkl      Move
+	Gui, PreviewHelp:Add, Text, x490 y+5, 1-0       Place 1-10
+	Gui, PreviewHelp:Add, Text, x490 y+5, c         Color
+	Gui, PreviewHelp:Add, Text, x490 y+5, i / u     Size
+	Gui, PreviewHelp:Add, Text, x490 y+5, z         Undo
+	Gui, PreviewHelp:Add, Text, x490 y+5, Enter     Apply
+	Gui, PreviewHelp:Add, Text, x490 y+5, Esc       Cancel
+
+	; Footer
+	Gui, PreviewHelp:Add, Text, x10 y+20, Press F1 or Esc to close
+	Gui, PreviewHelp:Show, , Preview Shortcuts
+	previewHelpOpen := 1
+return
+
+PreviewHelpGuiClose:
+PreviewHelpGuiEscape:
+	Gui, PreviewHelp:Destroy
+	previewHelpOpen := 0
 return
 #If

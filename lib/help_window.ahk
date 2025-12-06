@@ -13,32 +13,37 @@ ToggleHelpWindow:
 	}
 return
 
-; Show help window with keyboard shortcuts
+; Show help window with keyboard shortcuts (3-column layout)
 ShowHelpWindow:
 	Gui, HelpWindow:Destroy
 	Gui, HelpWindow:+AlwaysOnTop +ToolWindow
 	Gui, HelpWindow:Font, s10, Consolas
-	Gui, HelpWindow:Add, Text, , === NAVIGATION ===
-	Gui, HelpWindow:Add, Text, , Arrow keys / hjkl    Move cursor
-	Gui, HelpWindow:Add, Text, , Shift + above        Move slower
-	Gui, HelpWindow:Add, Text, ,
-	Gui, HelpWindow:Add, Text, , === ACTIONS ===
-	Gui, HelpWindow:Add, Text, , Space                Confirm position
-	Gui, HelpWindow:Add, Text, , a                    Capture active window
-	Gui, HelpWindow:Add, Text, , r                    Same region again
-	Gui, HelpWindow:Add, Text, , Alt+Shift+Q          Cancel
-	Gui, HelpWindow:Add, Text, ,
-	Gui, HelpWindow:Add, Text, , === MODIFIERS ===
-	Gui, HelpWindow:Add, Text, , d                    Delayed screenshot (5s)
-	Gui, HelpWindow:Add, Text, , 1 / 2 / 3            Resize 75`% / 50`% / 25`%
-	Gui, HelpWindow:Add, Text, , f                    Save to file
-	Gui, HelpWindow:Add, Text, , m                    Capture mouse cursor
-	Gui, HelpWindow:Add, Text, , w                    Show in window
-	Gui, HelpWindow:Add, Text, , u                    Upload with ShareX
-	Gui, HelpWindow:Add, Text, , e                    Edit with ShareX
-	Gui, HelpWindow:Add, Text, , o                    OCR screenshot
-	Gui, HelpWindow:Add, Text, ,
-	Gui, HelpWindow:Add, Text, , Press F1 or Esc to close
+
+	; Column 1: NAVIGATION
+	Gui, HelpWindow:Add, Text, x10 y10, === NAVIGATION ===
+	Gui, HelpWindow:Add, Text, x10 y+5, hjkl / Arrows   Move cursor
+	Gui, HelpWindow:Add, Text, x10 y+5, Shift + above   Move slower
+
+	; Column 2: ACTIONS
+	Gui, HelpWindow:Add, Text, x220 y10, === ACTIONS ===
+	Gui, HelpWindow:Add, Text, x220 y+5, Space          Confirm position
+	Gui, HelpWindow:Add, Text, x220 y+5, a              Active window
+	Gui, HelpWindow:Add, Text, x220 y+5, r              Same region again
+	Gui, HelpWindow:Add, Text, x220 y+5, Alt+Shift+Q    Cancel
+
+	; Column 3: MODIFIERS
+	Gui, HelpWindow:Add, Text, x430 y10, === MODIFIERS ===
+	Gui, HelpWindow:Add, Text, x430 y+5, d              Delayed (5s)
+	Gui, HelpWindow:Add, Text, x430 y+5, 1 / 2 / 3      Resize 75/50/25`%
+	Gui, HelpWindow:Add, Text, x430 y+5, f              Save to file
+	Gui, HelpWindow:Add, Text, x430 y+5, m              Capture cursor
+	Gui, HelpWindow:Add, Text, x430 y+5, w              Show in window
+	Gui, HelpWindow:Add, Text, x430 y+5, u              Upload ShareX
+	Gui, HelpWindow:Add, Text, x430 y+5, e              Edit ShareX
+	Gui, HelpWindow:Add, Text, x430 y+5, o              OCR screenshot
+
+	; Footer
+	Gui, HelpWindow:Add, Text, x10 y+20, Press F1 or Esc to close
 	Gui, HelpWindow:Show, , Keyboard Shortcuts
 	helpWindowOpen := 1
 return
