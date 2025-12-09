@@ -11,7 +11,7 @@ DrawStatusBar(pGraphics, width, height) {
 
     ; Status text based on mode
     if (previewMode = "viewing")
-        text := "[Viewing]  a:arrow  n:number  r:rect  c:crop  f:save  u:upload  Esc:close"
+        text := "[Viewing]  a:arrow  n:number  r:rect  c:crop  f:save  p:copy  u:upload  Esc:close"
     else if (previewMode = "crop")
         text := "[Crop]  hjkl:adjust  Shift:extend  Enter:apply  Esc:cancel"
     else if (previewMode = "arrow")

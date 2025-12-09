@@ -76,6 +76,7 @@ The preview window displays captured screenshots and provides editing capabiliti
 |-----|------|--------|
 | `F1` | All | Toggle help window |
 | `f` | Viewing | Save to file (overwrites if already saved) |
+| `p` | Viewing | Copy screenshot to clipboard |
 | `u` | Viewing | Upload to FTP/ShareX |
 | `Shift+U` | Viewing | Open last uploaded URL |
 | `c` | Viewing | Enter crop mode |
@@ -97,7 +98,7 @@ The preview window displays captured screenshots and provides editing capabiliti
 
 ## Status Bar
 Bottom of window shows current mode and available actions:
-- Viewing: `[Viewing]  a:arrow  n:number  r:rect  c:crop  f:save  u:upload  Esc:close`
+- Viewing: `[Viewing]  a:arrow  n:number  r:rect  c:crop  f:save  p:copy  u:upload  Esc:close`
 - Crop: `[Crop]  hjkl:adjust  Shift:extend  Enter:apply  Esc:cancel`
 - Arrow: `[Arrow:Red]  hjkl:move  Space:set  u/i:size  c:color  z:undo  Enter:apply  Esc:cancel`
 - Number: `[Number:Red]  hjkl:move  1-0:place  u/i:size  c:color  z:undo  Enter:apply  Esc:cancel`

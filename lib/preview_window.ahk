@@ -785,6 +785,25 @@ return
 	}
 return
 
+; Hotkey: p = copy to clipboard (viewing mode only)
+p::
+	global previewPBitmap, previewMode
+
+	; Only work in viewing mode
+	if (previewMode != "viewing")
+		return
+
+	if (!previewPBitmap) {
+		ToolTip, No screenshot to copy
+		SetTimer, RemovePreviewToolTip, -2000
+		return
+	}
+
+	Gdip_SetBitmapToClipboard(previewPBitmap)
+	ToolTip, Copied to clipboard
+	SetTimer, RemovePreviewToolTip, -2000
+return
+
 RemovePreviewToolTip:
 	ToolTip
 return
@@ -816,6 +835,8 @@ ShowPreviewHelp:
 	Gui, PreviewHelp:Add, Text, x75 yp cE0E0E0, Upload
 	Gui, PreviewHelp:Add, Text, x15 y+5 c808080, Shift+U
 	Gui, PreviewHelp:Add, Text, x75 yp cE0E0E0, Open URL
+	Gui, PreviewHelp:Add, Text, x15 y+5 c808080, p
+	Gui, PreviewHelp:Add, Text, x75 yp cE0E0E0, Copy to clipboard
 	Gui, PreviewHelp:Add, Text, x15 y+5 c808080, c
 	Gui, PreviewHelp:Add, Text, x75 yp cE0E0E0, Crop mode
 	Gui, PreviewHelp:Add, Text, x15 y+5 c808080, a

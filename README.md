@@ -72,6 +72,7 @@ The window position and size are saved automatically.
 The preview window supports multiple editing modes. Press F1 in the preview window to see all shortcuts.
 
 - **f** - Save screenshot to file
+- **p** - Copy screenshot to clipboard
 - **u** - Upload screenshot
 - **Shift+U** - Open last uploaded URL in browser
 - **c** - Enter crop mode
