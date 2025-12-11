@@ -799,7 +799,8 @@ p::
 		return
 	}
 
-	Gdip_SetBitmapToClipboard(previewPBitmap)
+	hBitmap := Gdip_CreateHBITMAPFromBitmap(previewPBitmap, 0xFFFFFFFF)
+	SetClipboardData(hBitmap)
 	ToolTip, Copied to clipboard
 	SetTimer, RemovePreviewToolTip, -2000
 return
