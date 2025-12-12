@@ -114,20 +114,31 @@ ApplyNumbers() {
 
 ; Reset number mode state
 ResetNumberState() {
-    global previewMode, arrowCursorX, arrowCursorY, numbers, previewImageWidth, previewImageHeight
+    global previewMode, arrowCursorX, arrowCursorY, numbers, previewImageWidth, previewImageHeight, nextNumber
 
     previewMode := "viewing"
     arrowCursorX := previewImageWidth // 2
     arrowCursorY := previewImageHeight // 2
     numbers := []
+    nextNumber := 1  ; Reset to 1 for next session
 }
 
 ; Add number at current cursor position
 AddNumber(num) {
-    global arrowCursorX, arrowCursorY, numbers, arrowColors, numberColorIndex, numberSize
+    global arrowCursorX, arrowCursorY, numbers, arrowColors, numberColorIndex, numberSize, nextNumber
 
     number := {x: arrowCursorX, y: arrowCursorY, num: num, color: arrowColors[numberColorIndex+1], size: numberSize}
     numbers.Push(number)
+
+    ; Update nextNumber to follow placed number (wrap 10 -> 1)
+    nextNumber := (num >= 10) ? 1 : num + 1
+}
+
+; Add next sequential number at current cursor position (for mouse click)
+AddNextNumber() {
+    global nextNumber
+
+    AddNumber(nextNumber)
 }
 
 ; Cycle number color
