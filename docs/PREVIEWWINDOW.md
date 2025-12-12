@@ -25,21 +25,20 @@ The preview window displays captured screenshots and provides editing capabiliti
 
 ### Crop Mode
 - Press `c` to enter crop mode
-- Adjust crop edges with `hjkl` or arrow keys:
-  - `h` / `Left` - shrink from left
-  - `l` / `Right` - shrink from right
-  - `k` / `Up` - shrink from top
-  - `j` / `Down` - shrink from bottom
-- Hold `Shift` + direction key to extend (reverse direction)
+- Cursor starts at mouse position
+- Move cursor with `hjkl` or arrow keys (Shift for 5x speed) or mouse
+- Press `Space` or left-click to set first corner
+- Move to opposite corner
+- Press `Space` or left-click to set second corner
 - Press `Enter` to apply crop
 - Press `Esc` to cancel and return to viewing mode
-- Visual overlay darkens areas to be cropped
+- Visual overlay darkens areas outside selection
 
 ### Arrow Mode
 - Press `a` to enter arrow mode
 - Cursor starts at mouse position
-- Move cursor with `hjkl` or arrow keys (Shift for 5x speed)
-- Press `Space` to set start point, move, `Space` again for end point
+- Move cursor with `hjkl` or arrow keys (Shift for 5x speed) or mouse
+- Press `Space` or left-click to set start point, move, `Space`/click again for end point
 - Press `c` to cycle colors (red/blue/green/yellow/black)
 - Press `i`/`u` to increase/decrease arrow size
 - Press `z` to undo last arrow
@@ -50,8 +49,9 @@ The preview window displays captured screenshots and provides editing capabiliti
 ### Number Mode
 - Press `n` to enter number mode
 - Cursor starts at mouse position
-- Move cursor with `hjkl` or arrow keys (Shift for 5x speed)
+- Move cursor with `hjkl` or arrow keys (Shift for 5x speed) or mouse
 - Press `1-9` to place numbers 1-9, `0` for number 10
+- Left-click to place next sequential number (auto-increments 1→2→3...→10→1)
 - Press `c` to cycle colors (shares arrow color palette)
 - Press `i`/`u` to increase/decrease circle size
 - Press `z` to undo last number
@@ -62,8 +62,8 @@ The preview window displays captured screenshots and provides editing capabiliti
 ### Rectangle Mode
 - Press `r` to enter rectangle mode
 - Cursor starts at mouse position
-- Move cursor with `hjkl` or arrow keys (Shift for 5x speed)
-- Press `Space` to set first corner, move, `Space` again for opposite corner
+- Move cursor with `hjkl` or arrow keys (Shift for 5x speed) or mouse
+- Press `Space` or left-click to set first corner, move, `Space`/click again for opposite corner
 - Press `c` to cycle colors (red/blue/green/yellow/black)
 - Press `i`/`u` to increase/decrease line thickness
 - Press `z` to undo last rectangle
@@ -83,11 +83,11 @@ The preview window displays captured screenshots and provides editing capabiliti
 | `a` | Viewing | Enter arrow mode |
 | `n` | Viewing | Enter number mode |
 | `r` | Viewing | Enter rectangle mode |
-| `hjkl` / Arrows | Crop | Shrink from edge |
-| `Shift` + above | Crop | Extend edge |
-| `hjkl` / Arrows | Arrow/Number/Rect | Move cursor |
-| `Shift` + above | Arrow/Number/Rect | Move cursor faster (5x) |
-| `Space` | Arrow/Rect | Set start/end point or corner |
+| `hjkl` / Arrows | Crop/Arrow/Number/Rect | Move cursor |
+| `Shift` + above | Crop/Arrow/Number/Rect | Move cursor faster (5x) |
+| Mouse move | Crop/Arrow/Number/Rect | Move cursor |
+| `Space` / Left-click | Crop/Arrow/Rect | Set corner/point |
+| Left-click | Number | Place next sequential number |
 | `1-9`, `0` | Number | Place number 1-10 |
 | `c` | Arrow/Number/Rect | Cycle color |
 | `i` | Arrow/Number/Rect | Increase size |
@@ -99,7 +99,7 @@ The preview window displays captured screenshots and provides editing capabiliti
 ## Status Bar
 Bottom of window shows current mode and available actions:
 - Viewing: `[Viewing]  a:arrow  n:number  r:rect  c:crop  f:save  p:copy  u:upload  Esc:close`
-- Crop: `[Crop]  hjkl:adjust  Shift:extend  Enter:apply  Esc:cancel`
+- Crop: `[Crop]  hjkl/mouse:move  Space/click:set  Enter:apply  Esc:cancel`
 - Arrow: `[Arrow:Red]  hjkl:move  Space:set  u/i:size  c:color  z:undo  Enter:apply  Esc:cancel`
 - Number: `[Number:Red]  hjkl:move  1-0:place  u/i:size  c:color  z:undo  Enter:apply  Esc:cancel`
 - Rectangle: `[Rect:Red]  hjkl:move  Space:set  u/i:size  c:color  z:undo  Enter:apply  Esc:cancel`
@@ -119,11 +119,11 @@ previewSavedFilePath := ""    ; Saved file path for overwrite
 previewMode := "viewing"      ; "viewing", "crop", "arrow", "number", or "rectangle"
 
 ; Crop mode state
-cropLeft := 0
-cropTop := 0
-cropRight := 0
-cropBottom := 0
-cropStep := 10                ; Pixels per keypress
+cropSettingStart := 0         ; 0 = setting first corner, 1 = setting second corner
+cropStartX := 0
+cropStartY := 0
+cropEndX := 0
+cropEndY := 0
 
 ; Arrow mode state
 arrowCursorX := 0             ; Shared with number mode
@@ -142,6 +142,7 @@ arrowMoveStep := 10           ; Pixels per keypress
 numbers := []                 ; Array of {x, y, num, color, size}
 numberSize := 24              ; Saved to settings.ini
 numberColorIndex := 0         ; Saved to settings.ini (shares arrowColors palette)
+nextNumber := 1               ; Next number to place on click (auto-increments)
 
 ; Rectangle mode state
 rectangles := []              ; Array of {x1, y1, x2, y2, color, size}
@@ -158,11 +159,14 @@ rectStartY := 0
 - `ShowImageWindow(tempFile, nW, nH, resizeBy)` - Opens preview window
 - `ImageViewPaint()` - WM_PAINT handler with double-buffering
 - `ImageViewEraseBkgnd()` - Prevents background erase flicker
+- `PreviewMouseDown(wParam, lParam, msg, hwnd)` - WM_LBUTTONDOWN handler for mouse clicks
+- `PreviewMouseMove(wParam, lParam, msg, hwnd)` - WM_MOUSEMOVE handler for cursor tracking
 
 ### crop.ahk
 - `ApplyCrop()` - Applies crop using Gdip_CloneBitmapArea
-- `DrawCropOverlay(pGraphics, offsetX, offsetY, scaledWidth, scaledHeight)` - Draws dark overlay
-- `AdjustCropEdge(edge, delta)` - Adjusts crop with bounds validation
+- `DrawCropOverlay(pGraphics, offsetX, offsetY, scaledWidth, scaledHeight)` - Draws cursor and selection preview
+- `DrawCropCursor(pGraphics, x, y)` - Draws crosshair cursor
+- `SetCropPoint()` - Sets first or second corner
 - `ResetCropState()` - Resets to viewing mode
 
 ### arrow.ahk
@@ -185,6 +189,7 @@ rectStartY := 0
 - `ApplyNumbers()` - Permanently applies numbers to bitmap
 - `ResetNumberState()` - Resets to viewing mode
 - `AddNumber(num)` - Adds number at cursor position
+- `AddNextNumber()` - Adds next sequential number at cursor (for mouse click)
 - `CycleNumberColor()` - Cycles color and saves to settings
 - `ChangeNumberSize(delta)` - Changes size and saves to settings
 
@@ -271,7 +276,8 @@ To add a new annotation mode (e.g., rectangles, text):
 - [ ] Add zoom in/out functionality
 - [ ] Add undo for annotations
 - [ ] Add text annotation mode
-- [ ] Add rectangle/ellipse annotation mode
-- [ ] Add copy to clipboard hotkey
+- [ ] Add ellipse annotation mode
+- [x] Add copy to clipboard hotkey (p key)
 - [ ] Add rotation support
 - [ ] Allow changing color/size of existing annotations before applying
+- [x] Add mouse support for all annotation modes
