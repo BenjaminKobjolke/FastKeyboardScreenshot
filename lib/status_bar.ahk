@@ -13,7 +13,7 @@ DrawStatusBar(pGraphics, width, height) {
     if (previewMode = "viewing")
         text := "[Viewing]  a:arrow  n:number  r:rect  c:crop  f:save  p:copy  u:upload  Esc:close"
     else if (previewMode = "crop")
-        text := "[Crop]  hjkl:adjust  Shift:extend  Enter:apply  Esc:cancel"
+        text := "[Crop]  hjkl/mouse:move  Space/click:set  Enter:apply  Esc:cancel"
     else if (previewMode = "arrow")
         text := "[Arrow:" . arrowColorNames[arrowColorIndex+1] . "]  hjkl:move  Space:set  u/i:size  c:color  z:undo  Enter:apply  Esc:cancel"
     else if (previewMode = "number")

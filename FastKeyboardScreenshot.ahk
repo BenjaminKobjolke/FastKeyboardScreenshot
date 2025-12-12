@@ -66,12 +66,12 @@ previewTempFile := ""
 previewSavedFilePath := ""  ; Track saved file for overwrite
 
 ; Global variables for crop mode
-previewMode := "viewing"  ; "viewing", "crop", or "arrow"
-cropLeft := 0
-cropTop := 0
-cropRight := 0
-cropBottom := 0
-cropStep := 10  ; Pixels per keypress
+previewMode := "viewing"  ; "viewing", "crop", "arrow", "number", or "rectangle"
+cropSettingStart := 0  ; 0 = setting first corner, 1 = setting second corner
+cropStartX := 0
+cropStartY := 0
+cropEndX := 0
+cropEndY := 0
 
 ; Global variables for arrow mode
 arrowCursorX := 0
@@ -90,6 +90,7 @@ arrowMoveStep := 10  ; Pixels per keypress
 numbers := []  ; Array of placed numbers
 numberSize := 24  ; Circle diameter
 numberColorIndex := 0  ; Color index (shares arrowColors palette)
+nextNumber := 1  ; Next number to place on click (auto-increments)
 
 ; Global variables for rectangle mode
 rectangles := []  ; Array of drawn rectangles

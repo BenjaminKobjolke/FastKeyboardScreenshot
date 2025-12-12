@@ -164,6 +164,69 @@ ImageViewEraseBkgnd(wParam, lParam, msg, hwnd) {
 		return 1  ; Tell Windows we handled it, don't erase
 }
 
+; Handle WM_LBUTTONDOWN - mouse click in preview window
+PreviewMouseDown(wParam, lParam, msg, hwnd) {
+	global previewHwnd, previewMode
+
+	if (hwnd != previewHwnd)
+		return
+
+	; Update cursor position from mouse
+	SetArrowCursorFromMouse()
+
+	; Handle click based on current mode
+	if (previewMode = "arrow") {
+		SetArrowPoint()
+	} else if (previewMode = "rectangle") {
+		SetRectanglePoint()
+	} else if (previewMode = "crop") {
+		SetCropPoint()
+	} else if (previewMode = "number") {
+		AddNextNumber()
+	}
+
+	DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
+}
+
+; Handle WM_MOUSEMOVE - mouse movement in preview window
+PreviewMouseMove(wParam, lParam, msg, hwnd) {
+	global previewHwnd, previewMode
+
+	if (hwnd != previewHwnd)
+		return
+
+	; Only track mouse in annotation/crop modes
+	if (previewMode = "arrow" || previewMode = "rectangle" || previewMode = "number" || previewMode = "crop") {
+		SetArrowCursorFromMouse()
+		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
+	}
+}
+
+; Handle WM_MOUSEWHEEL - mouse wheel to change size in annotation modes
+PreviewMouseWheel(wParam, lParam, msg, hwnd) {
+	global previewHwnd, previewMode
+
+	if (hwnd != previewHwnd)
+		return
+
+	; Get wheel delta (positive = scroll up, negative = scroll down)
+	wheelDelta := (wParam >> 16) & 0xFFFF
+	if (wheelDelta > 32767)
+		wheelDelta := wheelDelta - 65536
+
+	; Scroll up = increase size, scroll down = decrease size
+	if (previewMode = "arrow") {
+		ChangeArrowSize(wheelDelta > 0 ? 1 : -1)
+		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
+	} else if (previewMode = "number") {
+		ChangeNumberSize(wheelDelta > 0 ? 1 : -1)
+		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
+	} else if (previewMode = "rectangle") {
+		ChangeRectangleSize(wheelDelta > 0 ? 1 : -1)
+		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
+	}
+}
+
 ShowImageWindow(tempFile, nW, nH, resizeBy = 1)
 {
 	global previewImagePath, previewImageWidth, previewImageHeight
@@ -177,6 +240,9 @@ ShowImageWindow(tempFile, nW, nH, resizeBy = 1)
 		; Unregister message handlers
 		OnMessage(0x000F, "ImageViewPaint", 0)
 		OnMessage(0x0014, "ImageViewEraseBkgnd", 0)
+		OnMessage(0x0201, "PreviewMouseDown", 0)
+		OnMessage(0x0200, "PreviewMouseMove", 0)
+		OnMessage(0x020A, "PreviewMouseWheel", 0)
 
 		; Cleanup GDI+ bitmap
 		if (previewPBitmap)
@@ -197,6 +263,10 @@ ShowImageWindow(tempFile, nW, nH, resizeBy = 1)
 
 	; Reset crop state when opening new preview
 	ResetCropState()
+
+	; Reset number counter for new preview
+	global nextNumber
+	nextNumber := 1
 
 	; Store image path and temp file globally
 	previewImagePath := tempFile
@@ -222,6 +292,9 @@ ShowImageWindow(tempFile, nW, nH, resizeBy = 1)
 	; Register message handlers
 	OnMessage(0x000F, "ImageViewPaint")
 	OnMessage(0x0014, "ImageViewEraseBkgnd")  ; Prevent background erase flicker
+	OnMessage(0x0201, "PreviewMouseDown")      ; WM_LBUTTONDOWN
+	OnMessage(0x0200, "PreviewMouseMove")      ; WM_MOUSEMOVE
+	OnMessage(0x020A, "PreviewMouseWheel")     ; WM_MOUSEWHEEL
 
 	; Show window at saved position or centered
 	if (savedX = "Center" || savedY = "Center")
@@ -260,6 +333,9 @@ ImageViewGuiClose:
 	; Unregister message handlers
 	OnMessage(0x000F, "ImageViewPaint", 0)
 	OnMessage(0x0014, "ImageViewEraseBkgnd", 0)
+	OnMessage(0x0201, "PreviewMouseDown", 0)
+	OnMessage(0x0200, "PreviewMouseMove", 0)
+	OnMessage(0x020A, "PreviewMouseWheel", 0)
 
 	; Cleanup GDI+ bitmap
 	if (previewPBitmap)
@@ -321,6 +397,9 @@ Esc::
 	; Unregister message handlers
 	OnMessage(0x000F, "ImageViewPaint", 0)
 	OnMessage(0x0014, "ImageViewEraseBkgnd", 0)
+	OnMessage(0x0201, "PreviewMouseDown", 0)
+	OnMessage(0x0200, "PreviewMouseMove", 0)
+	OnMessage(0x020A, "PreviewMouseWheel", 0)
 
 	; Cleanup GDI+ bitmap
 	if (previewPBitmap)
@@ -376,13 +455,11 @@ return
 
 ; Enter crop mode / Cycle arrow/number/rectangle color
 c::
-	global previewMode, previewHwnd, cropLeft, cropTop, cropRight, cropBottom
+	global previewMode, previewHwnd, cropSettingStart
 	if (previewMode = "viewing") {
 		previewMode := "crop"
-		cropLeft := 0
-		cropTop := 0
-		cropRight := 0
-		cropBottom := 0
+		cropSettingStart := 0
+		SetArrowCursorFromMouse()
 		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
 	} else if (previewMode = "arrow") {
 		CycleArrowColor()
@@ -396,105 +473,81 @@ c::
 	}
 return
 
-; Movement - left (crop: shrink, arrow/number/rectangle: move cursor)
+; Movement - left (all modes: move cursor)
 h::
 Left::
-	global previewMode, cropStep, arrowMoveStep, previewHwnd
-	if (previewMode = "crop") {
-		AdjustCropEdge("left", cropStep)
-		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
-	} else if (previewMode = "arrow" || previewMode = "number" || previewMode = "rectangle") {
+	global previewMode, arrowMoveStep, previewHwnd
+	if (previewMode = "crop" || previewMode = "arrow" || previewMode = "number" || previewMode = "rectangle") {
 		MoveArrowCursor(-arrowMoveStep, 0)
 		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
 	}
 return
 
-; Movement - extend left (Shift) / fast move cursor
+; Movement - fast left (Shift)
 +h::
 +Left::
-	global previewMode, cropStep, arrowMoveStep, previewHwnd
-	if (previewMode = "crop") {
-		AdjustCropEdge("left", -cropStep)
-		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
-	} else if (previewMode = "arrow" || previewMode = "number" || previewMode = "rectangle") {
+	global previewMode, arrowMoveStep, previewHwnd
+	if (previewMode = "crop" || previewMode = "arrow" || previewMode = "number" || previewMode = "rectangle") {
 		MoveArrowCursor(-arrowMoveStep * 5, 0)
 		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
 	}
 return
 
-; Movement - right (crop: shrink, annotation: move cursor)
+; Movement - right (all modes: move cursor)
 l::
 Right::
-	global previewMode, cropStep, arrowMoveStep, previewHwnd
-	if (previewMode = "crop") {
-		AdjustCropEdge("right", cropStep)
-		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
-	} else if (previewMode = "arrow" || previewMode = "number" || previewMode = "rectangle") {
+	global previewMode, arrowMoveStep, previewHwnd
+	if (previewMode = "crop" || previewMode = "arrow" || previewMode = "number" || previewMode = "rectangle") {
 		MoveArrowCursor(arrowMoveStep, 0)
 		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
 	}
 return
 
-; Movement - extend right (Shift) / fast move cursor
+; Movement - fast right (Shift)
 +l::
 +Right::
-	global previewMode, cropStep, arrowMoveStep, previewHwnd
-	if (previewMode = "crop") {
-		AdjustCropEdge("right", -cropStep)
-		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
-	} else if (previewMode = "arrow" || previewMode = "number" || previewMode = "rectangle") {
+	global previewMode, arrowMoveStep, previewHwnd
+	if (previewMode = "crop" || previewMode = "arrow" || previewMode = "number" || previewMode = "rectangle") {
 		MoveArrowCursor(arrowMoveStep * 5, 0)
 		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
 	}
 return
 
-; Movement - up (crop: shrink, annotation: move cursor)
+; Movement - up (all modes: move cursor)
 k::
 Up::
-	global previewMode, cropStep, arrowMoveStep, previewHwnd
-	if (previewMode = "crop") {
-		AdjustCropEdge("top", cropStep)
-		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
-	} else if (previewMode = "arrow" || previewMode = "number" || previewMode = "rectangle") {
+	global previewMode, arrowMoveStep, previewHwnd
+	if (previewMode = "crop" || previewMode = "arrow" || previewMode = "number" || previewMode = "rectangle") {
 		MoveArrowCursor(0, -arrowMoveStep)
 		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
 	}
 return
 
-; Movement - extend top (Shift) / fast move cursor
+; Movement - fast up (Shift)
 +k::
 +Up::
-	global previewMode, cropStep, arrowMoveStep, previewHwnd
-	if (previewMode = "crop") {
-		AdjustCropEdge("top", -cropStep)
-		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
-	} else if (previewMode = "arrow" || previewMode = "number" || previewMode = "rectangle") {
+	global previewMode, arrowMoveStep, previewHwnd
+	if (previewMode = "crop" || previewMode = "arrow" || previewMode = "number" || previewMode = "rectangle") {
 		MoveArrowCursor(0, -arrowMoveStep * 5)
 		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
 	}
 return
 
-; Movement - down (crop: shrink, annotation: move cursor)
+; Movement - down (all modes: move cursor)
 j::
 Down::
-	global previewMode, cropStep, arrowMoveStep, previewHwnd
-	if (previewMode = "crop") {
-		AdjustCropEdge("bottom", cropStep)
-		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
-	} else if (previewMode = "arrow" || previewMode = "number" || previewMode = "rectangle") {
+	global previewMode, arrowMoveStep, previewHwnd
+	if (previewMode = "crop" || previewMode = "arrow" || previewMode = "number" || previewMode = "rectangle") {
 		MoveArrowCursor(0, arrowMoveStep)
 		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
 	}
 return
 
-; Movement - extend bottom (Shift) / fast move cursor
+; Movement - fast down (Shift)
 +j::
 +Down::
-	global previewMode, cropStep, arrowMoveStep, previewHwnd
-	if (previewMode = "crop") {
-		AdjustCropEdge("bottom", -cropStep)
-		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
-	} else if (previewMode = "arrow" || previewMode = "number" || previewMode = "rectangle") {
+	global previewMode, arrowMoveStep, previewHwnd
+	if (previewMode = "crop" || previewMode = "arrow" || previewMode = "number" || previewMode = "rectangle") {
 		MoveArrowCursor(0, arrowMoveStep * 5)
 		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
 	}
@@ -528,7 +581,7 @@ Enter::
 	}
 return
 
-; Set arrow/rectangle point (Space)
+; Set arrow/rectangle/crop point or place number (Space)
 Space::
 	global previewMode, previewHwnd
 	if (previewMode = "arrow") {
@@ -536,6 +589,12 @@ Space::
 		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
 	} else if (previewMode = "rectangle") {
 		SetRectanglePoint()
+		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
+	} else if (previewMode = "crop") {
+		SetCropPoint()
+		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
+	} else if (previewMode = "number") {
+		AddNextNumber()
 		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
 	}
 return
