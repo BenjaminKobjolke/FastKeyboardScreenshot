@@ -8,6 +8,7 @@
 #Include %A_ScriptDir%\lib\utils.ahk
 #Include %A_ScriptDir%\lib\gui.ahk
 #Include %A_ScriptDir%\lib\image.ahk
+#Include %A_ScriptDir%\github_modules\RapidOCR-AutoHotkey\RapidOCR\RapidOCR.ahk
 #Include %A_ScriptDir%\lib\capture.ahk
 #Include %A_ScriptDir%\lib\crop.ahk
 #Include %A_ScriptDir%\lib\arrow.ahk
@@ -15,7 +16,20 @@
 #Include %A_ScriptDir%\lib\rectangle.ahk
 #Include %A_ScriptDir%\lib\status_bar.ahk
 #Include %A_ScriptDir%\lib\FTP_Upload.ahk
-#Include %A_ScriptDir%\github_modules\RapidOCR-AutoHotkey\RapidOCR\RapidOCR.ahk
+#Include %A_ScriptDir%\lib\SingleInstance.ahk
+
+; Class for single instance management
+class FastKeyboardScreenshotApp {
+    IsActive() {
+        return 1
+    }
+    Quit() {
+        ExitApp
+    }
+}
+
+; Ensure single instance - quit if another instance is already running
+CheckSingleInstance("{B8F4C2E1-7A3D-4F9E-8B5C-1D2E3F4A5B6C}", "FastKeyboardScreenshotApp")
 
 ; Initialize GDI+ once at startup (keep running for entire script lifetime)
 pGdipToken := Gdip_Startup()
@@ -23,7 +37,7 @@ if (!pGdipToken) {
     MsgBox, 48, Error!, GDI+ failed to initialize
     ExitApp
 }
-OnExit("CleanupGdip")
+OnExit("CleanupAll")
 
 CoordMode, Mouse, Screen
 
@@ -213,9 +227,14 @@ ClearActionTooltip:
     pendingOcrText := ""  ; Clear pending text if user dismissed
 return
 
-; Cleanup GDI+ on script exit
-CleanupGdip() {
-    global pGdipToken
+; Cleanup GDI+ and RapidOCR on script exit
+CleanupAll() {
+    global pGdipToken, rapidOcr
+    ; Terminate RapidOCR process
+    if (IsObject(rapidOcr)) {
+        try rapidOcr.exec.Terminate()
+    }
+    ; Shutdown GDI+
     if (pGdipToken)
         Gdip_Shutdown(pGdipToken)
 }

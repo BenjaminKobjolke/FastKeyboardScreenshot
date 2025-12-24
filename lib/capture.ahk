@@ -139,6 +139,14 @@ CaptureScreen(aRect = 0, bCursor = False, saveToFile = 0, uploadAfterCapture = 0
 			ocrText := rapidOcr.ocr(tempJpgPath)
 			ToolTip
 
+			; Alert user if no text was found
+			if (ocrText = "") {
+				MsgBox, 48, OCR Result, No text could be found in the image.
+				FileDelete, %tempJpgPath%
+				DllCall("DeleteObject", "ptr", hBM)
+				return
+			}
+
 			; Delete temp JPG
 			FileDelete, %tempJpgPath%
 
