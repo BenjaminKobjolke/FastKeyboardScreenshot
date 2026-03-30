@@ -139,20 +139,20 @@ SetRectanglePoint() {
 
 ; Cycle rectangle color
 CycleRectangleColor() {
-    global rectColorIndex, arrowColors
+    global rectColorIndex, arrowColors, settingsFile
 
     rectColorIndex := Mod(rectColorIndex + 1, arrowColors.Length())
 
     ; Save to settings
-    IniWrite, %rectColorIndex%, %A_ScriptDir%\settings.ini, Rectangle, ColorIndex
+    IniWrite, %rectColorIndex%, %settingsFile%, Rectangle, ColorIndex
 }
 
 ; Change rectangle size
 ChangeRectangleSize(delta) {
-    global rectSize
+    global rectSize, settingsFile
 
     rectSize := Max(1, Min(rectSize + delta, 20))
 
     ; Save to settings
-    IniWrite, %rectSize%, %A_ScriptDir%\settings.ini, Rectangle, Size
+    IniWrite, %rectSize%, %settingsFile%, Rectangle, Size
 }

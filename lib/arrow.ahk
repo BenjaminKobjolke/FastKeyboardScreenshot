@@ -294,20 +294,20 @@ SetArrowPoint() {
 
 ; Cycle arrow color
 CycleArrowColor() {
-    global arrowColorIndex, arrowColors
+    global arrowColorIndex, arrowColors, settingsFile
 
     arrowColorIndex := Mod(arrowColorIndex + 1, arrowColors.Length())
 
     ; Save to settings
-    IniWrite, %arrowColorIndex%, %A_ScriptDir%\settings.ini, Arrow, ColorIndex
+    IniWrite, %arrowColorIndex%, %settingsFile%, Arrow, ColorIndex
 }
 
 ; Change arrow size
 ChangeArrowSize(delta) {
-    global arrowSize
+    global arrowSize, settingsFile
 
     arrowSize := Max(1, Min(arrowSize + delta, 20))
 
     ; Save to settings
-    IniWrite, %arrowSize%, %A_ScriptDir%\settings.ini, Arrow, Size
+    IniWrite, %arrowSize%, %settingsFile%, Arrow, Size
 }

@@ -125,8 +125,8 @@ lastUploadedUrl := ""
 pendingOcrText := ""
 
 ; Initialize ShareX path from settings or by searching
-IniRead, sharexPath, %A_ScriptDir%\settings.ini, General, ShareXPath, NOT_FOUND
-IniRead, sharexNotFound, %A_ScriptDir%\settings.ini, General, ShareXNotFound, 0
+IniRead, sharexPath, %settingsFile%, General, ShareXPath, NOT_FOUND
+IniRead, sharexNotFound, %settingsFile%, General, ShareXNotFound, 0
 
 ; If path is not in settings or marked as not found, search for it
 if (sharexPath = "NOT_FOUND" && sharexNotFound = 0) {
@@ -136,11 +136,11 @@ if (sharexPath = "NOT_FOUND" && sharexNotFound = 0) {
     ; Store the result in settings.ini
     if (sharexPath = "") {
         ; ShareX was not found, mark it as not found
-        IniWrite, 1, %A_ScriptDir%\settings.ini, General, ShareXNotFound
+        IniWrite, 1, %settingsFile%, General, ShareXNotFound
     } else {
         ; ShareX was found, store the path
-        IniWrite, %sharexPath%, %A_ScriptDir%\settings.ini, General, ShareXPath
-        IniWrite, 0, %A_ScriptDir%\settings.ini, General, ShareXNotFound
+        IniWrite, %sharexPath%, %settingsFile%, General, ShareXPath
+        IniWrite, 0, %settingsFile%, General, ShareXNotFound
     }
 } else if (sharexNotFound = 1) {
     ; ShareX was previously not found, set path to empty
@@ -148,26 +148,26 @@ if (sharexPath = "NOT_FOUND" && sharexNotFound = 0) {
 }
 
 ; Load arrow preferences from settings
-IniRead, arrowColorIndex, %A_ScriptDir%\settings.ini, Arrow, ColorIndex, 0
+IniRead, arrowColorIndex, %settingsFile%, Arrow, ColorIndex, 0
 if (arrowColorIndex >= arrowColors.Length())
     arrowColorIndex := 0
-IniRead, arrowSize, %A_ScriptDir%\settings.ini, Arrow, Size, 3
+IniRead, arrowSize, %settingsFile%, Arrow, Size, 3
 if (arrowSize < 1 || arrowSize > 20)
     arrowSize := 3
 
 ; Load number preferences from settings
-IniRead, numberColorIndex, %A_ScriptDir%\settings.ini, Number, ColorIndex, 0
+IniRead, numberColorIndex, %settingsFile%, Number, ColorIndex, 0
 if (numberColorIndex >= arrowColors.Length())
     numberColorIndex := 0
-IniRead, numberSize, %A_ScriptDir%\settings.ini, Number, Size, 24
+IniRead, numberSize, %settingsFile%, Number, Size, 24
 if (numberSize < 12 || numberSize > 60)
     numberSize := 24
 
 ; Load rectangle preferences from settings
-IniRead, rectColorIndex, %A_ScriptDir%\settings.ini, Rectangle, ColorIndex, 0
+IniRead, rectColorIndex, %settingsFile%, Rectangle, ColorIndex, 0
 if (rectColorIndex >= arrowColors.Length())
     rectColorIndex := 0
-IniRead, rectSize, %A_ScriptDir%\settings.ini, Rectangle, Size, 3
+IniRead, rectSize, %settingsFile%, Rectangle, Size, 3
 if (rectSize < 1 || rectSize > 20)
     rectSize := 3
 

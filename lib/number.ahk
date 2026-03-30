@@ -143,20 +143,20 @@ AddNextNumber() {
 
 ; Cycle number color
 CycleNumberColor() {
-    global numberColorIndex, arrowColors
+    global numberColorIndex, arrowColors, settingsFile
 
     numberColorIndex := Mod(numberColorIndex + 1, arrowColors.Length())
 
     ; Save to settings
-    IniWrite, %numberColorIndex%, %A_ScriptDir%\settings.ini, Number, ColorIndex
+    IniWrite, %numberColorIndex%, %settingsFile%, Number, ColorIndex
 }
 
 ; Change number size
 ChangeNumberSize(delta) {
-    global numberSize
+    global numberSize, settingsFile
 
     numberSize := Max(12, Min(numberSize + delta * 2, 60))
 
     ; Save to settings
-    IniWrite, %numberSize%, %A_ScriptDir%\settings.ini, Number, Size
+    IniWrite, %numberSize%, %settingsFile%, Number, Size
 }

@@ -6,7 +6,7 @@
 
 ShowTextWindow(text)
 {
-    global textPreviewHwnd, TextContent
+    global textPreviewHwnd, TextContent, settingsFile
 
     ; Close existing text preview if open
     if (textPreviewHwnd) {
@@ -15,11 +15,11 @@ ShowTextWindow(text)
     }
 
     ; Load saved window size/position and font size
-    IniRead, savedWidth, %A_ScriptDir%\settings.ini, TextPreviewWindow, Width, 600
-    IniRead, savedHeight, %A_ScriptDir%\settings.ini, TextPreviewWindow, Height, 400
-    IniRead, savedX, %A_ScriptDir%\settings.ini, TextPreviewWindow, X, Center
-    IniRead, savedY, %A_ScriptDir%\settings.ini, TextPreviewWindow, Y, Center
-    IniRead, fontSize, %A_ScriptDir%\settings.ini, TextPreviewWindow, FontSize, 14
+    IniRead, savedWidth, %settingsFile%, TextPreviewWindow, Width, 600
+    IniRead, savedHeight, %settingsFile%, TextPreviewWindow, Height, 400
+    IniRead, savedX, %settingsFile%, TextPreviewWindow, X, Center
+    IniRead, savedY, %settingsFile%, TextPreviewWindow, Y, Center
+    IniRead, fontSize, %settingsFile%, TextPreviewWindow, FontSize, 14
 
     ; Create text preview GUI with dark theme
     Gui, TextPreview:Destroy
@@ -43,10 +43,10 @@ TextPreviewGuiEscape:
     global textPreviewHwnd
     ; Save window position
     WinGetPos, winX, winY, winWidth, winHeight, OCR Text Preview
-    IniWrite, %winWidth%, %A_ScriptDir%\settings.ini, TextPreviewWindow, Width
-    IniWrite, %winHeight%, %A_ScriptDir%\settings.ini, TextPreviewWindow, Height
-    IniWrite, %winX%, %A_ScriptDir%\settings.ini, TextPreviewWindow, X
-    IniWrite, %winY%, %A_ScriptDir%\settings.ini, TextPreviewWindow, Y
+    IniWrite, %winWidth%, %settingsFile%, TextPreviewWindow, Width
+    IniWrite, %winHeight%, %settingsFile%, TextPreviewWindow, Height
+    IniWrite, %winX%, %settingsFile%, TextPreviewWindow, X
+    IniWrite, %winY%, %settingsFile%, TextPreviewWindow, Y
     Gui, TextPreview:Destroy
     textPreviewHwnd := 0
 return
@@ -230,7 +230,7 @@ PreviewMouseWheel(wParam, lParam, msg, hwnd) {
 ShowImageWindow(tempFile, nW, nH, resizeBy = 1)
 {
 	global previewImagePath, previewImageWidth, previewImageHeight
-	global previewPBitmap, previewHwnd, previewTempFile
+	global previewPBitmap, previewHwnd, previewTempFile, settingsFile
 
 	; Close existing preview window if already open
 	if (previewHwnd) {
@@ -276,10 +276,10 @@ ShowImageWindow(tempFile, nW, nH, resizeBy = 1)
 
 	; Always load saved window size and position from settings
 	; Use image dimensions as fallback if no saved settings
-	IniRead, savedWidth, %A_ScriptDir%\settings.ini, PreviewWindow, Width, %previewImageWidth%
-	IniRead, savedHeight, %A_ScriptDir%\settings.ini, PreviewWindow, Height, %previewImageHeight%
-	IniRead, savedX, %A_ScriptDir%\settings.ini, PreviewWindow, X, Center
-	IniRead, savedY, %A_ScriptDir%\settings.ini, PreviewWindow, Y, Center
+	IniRead, savedWidth, %settingsFile%, PreviewWindow, Width, %previewImageWidth%
+	IniRead, savedHeight, %settingsFile%, PreviewWindow, Height, %previewImageHeight%
+	IniRead, savedX, %settingsFile%, PreviewWindow, X, Center
+	IniRead, savedY, %settingsFile%, PreviewWindow, Y, Center
 
 	; Load the bitmap from file
 	previewPBitmap := Gdip_CreateBitmapFromFile(tempFile)
@@ -325,10 +325,10 @@ ImageViewGuiClose:
 
 	; Save window position and size
 	WinGetPos, winX, winY, winWidth, winHeight, Screenshot Preview
-	IniWrite, %winWidth%, %A_ScriptDir%\settings.ini, PreviewWindow, Width
-	IniWrite, %winHeight%, %A_ScriptDir%\settings.ini, PreviewWindow, Height
-	IniWrite, %winX%, %A_ScriptDir%\settings.ini, PreviewWindow, X
-	IniWrite, %winY%, %A_ScriptDir%\settings.ini, PreviewWindow, Y
+	IniWrite, %winWidth%, %settingsFile%, PreviewWindow, Width
+	IniWrite, %winHeight%, %settingsFile%, PreviewWindow, Height
+	IniWrite, %winX%, %settingsFile%, PreviewWindow, X
+	IniWrite, %winY%, %settingsFile%, PreviewWindow, Y
 
 	; Unregister message handlers
 	OnMessage(0x000F, "ImageViewPaint", 0)
@@ -389,10 +389,10 @@ Esc::
 
 	; Save window position and size
 	WinGetPos, winX, winY, winWidth, winHeight, Screenshot Preview
-	IniWrite, %winWidth%, %A_ScriptDir%\settings.ini, PreviewWindow, Width
-	IniWrite, %winHeight%, %A_ScriptDir%\settings.ini, PreviewWindow, Height
-	IniWrite, %winX%, %A_ScriptDir%\settings.ini, PreviewWindow, X
-	IniWrite, %winY%, %A_ScriptDir%\settings.ini, PreviewWindow, Y
+	IniWrite, %winWidth%, %settingsFile%, PreviewWindow, Width
+	IniWrite, %winHeight%, %settingsFile%, PreviewWindow, Height
+	IniWrite, %winX%, %settingsFile%, PreviewWindow, X
+	IniWrite, %winY%, %settingsFile%, PreviewWindow, Y
 
 	; Unregister message handlers
 	OnMessage(0x000F, "ImageViewPaint", 0)
