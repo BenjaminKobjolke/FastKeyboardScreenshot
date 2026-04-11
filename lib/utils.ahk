@@ -23,8 +23,10 @@ FindShareX()
     Return ""
 }
 
-; Handler for resolution changes - reloads the script to reinitialize all coordinates
+; Handler for resolution changes - debounces WM_DISPLAYCHANGE messages
+; Multiple messages can fire in rapid succession during DPI/resolution changes.
+; Uses a one-shot timer so only the last message triggers the actual reload.
 HandleResolutionChange() {
-	Reload
+	SetTimer, DoResolutionReload, -500
 	return
 }

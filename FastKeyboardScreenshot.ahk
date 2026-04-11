@@ -24,6 +24,8 @@ class FastKeyboardScreenshotApp {
         return 1
     }
     Quit() {
+        global ActiveObject
+        try ObjRegisterActive(ActiveObject, "")
         ExitApp
     }
 }
@@ -196,6 +198,10 @@ return
 
 Exit:
 	ExitApp
+return
+
+DoResolutionReload:
+	Reload
 return
 
 ; Action tooltip hotkeys (for FTP upload and OCR)

@@ -46,25 +46,54 @@ ObjRegisterActive(Object, CLSID, Flags:=0) {
 }
 
 CheckSingleInstance(GUID, ObjectClass) {
-    global isactive := 0
+    ; Try to close existing instance via COM
+    oldFound := false
     try {
         scriptObj := ComObjActive(GUID)
-        isactive := scriptObj.IsActive()
-        if isactive = 1
-        {
-            scriptObj.Quit()
-            ExitApp
+        if (scriptObj.IsActive() = 1) {
+            oldFound := true
+            try scriptObj.Quit()
         }
     } catch {
     }
+    scriptObj := ""  ; Release COM reference
 
-    if isactive = 0
-    {
-        ; Create and register our object
-        global ActiveObject := new %ObjectClass%()
-        ObjRegisterActive(ActiveObject, "")
-        ObjRegisterActive(ActiveObject, GUID)
-    } else {
-        ExitApp
+    if (oldFound) {
+        ; Wait up to 2s for old instance to exit, checking by hidden window
+        DetectHiddenWindows, On
+        attempts := 0
+        otherExists := false
+        while (attempts < 20) {
+            otherExists := false
+            WinGet, idList, List, %A_ScriptFullPath% ahk_class AutoHotkey
+            Loop, %idList% {
+                thisId := idList%A_Index%
+                if (thisId = A_ScriptHwnd)
+                    continue
+                otherExists := true
+                break
+            }
+            if (!otherExists)
+                break
+            Sleep, 100
+            attempts++
+        }
+        ; Force-kill if still alive
+        if (otherExists) {
+            WinGet, idList, List, %A_ScriptFullPath% ahk_class AutoHotkey
+            Loop, %idList% {
+                thisId := idList%A_Index%
+                if (thisId = A_ScriptHwnd)
+                    continue
+                WinGet, oldPid, PID, ahk_id %thisId%
+                Process, Close, %oldPid%
+                Process, WaitClose, %oldPid%, 2
+            }
+        }
+        DetectHiddenWindows, Off
     }
+
+    ; Register ourselves as the active instance
+    global ActiveObject := new %ObjectClass%()
+    ObjRegisterActive(ActiveObject, GUID)
 }
