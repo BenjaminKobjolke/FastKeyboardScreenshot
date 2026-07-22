@@ -79,7 +79,10 @@ The preview window supports multiple editing modes. Press F1 in the preview wind
 - **a** - Enter arrow mode
 - **n** - Enter number mode
 - **r** - Enter rectangle mode
+- **l** - Enter line mode
 - **Esc** - Close window (or cancel current mode)
+
+When the preview window opens, the mouse is moved to its center so mouse-driven annotation can start right away.
 
 **Crop Mode:**
 - Use hjkl or arrow keys to shrink from edges
@@ -120,6 +123,20 @@ Draw rectangle outlines on your screenshot to highlight areas.
 - Press Esc to cancel
 
 Rectangle color and size are saved to settings.ini.
+
+**Line Mode:**
+Draw straight lines on your screenshot.
+- Use hjkl or arrow keys to move cursor (Shift for faster), or the mouse
+- Press Space (or click) to set start point, then Space/click again to set end point
+- Hold Shift while drawing to snap the line to 45° angles (horizontal/vertical/diagonal)
+- Press Shift+Space (or Shift+click) to commit the segment and keep drawing from its endpoint (multiline)
+- Press c to cycle color (red/blue/green/yellow/black)
+- Press i/u to increase/decrease line thickness
+- Press z to undo the last line
+- Press Enter to apply lines to image
+- Press Esc to cancel
+
+Line color and size are saved to settings.ini.
 
 #### Capture active window
 

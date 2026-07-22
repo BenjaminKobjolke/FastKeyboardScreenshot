@@ -2,7 +2,7 @@
 
 ; Draw status bar at bottom of window
 DrawStatusBar(pGraphics, width, height) {
-    global previewMode, arrowColorIndex, arrowColorNames, numberColorIndex, rectColorIndex
+    global previewMode, arrowColorIndex, arrowColorNames, numberColorIndex, rectColorIndex, lineColorIndex
 
     ; Create font and brush - larger font for better visibility
     hFamily := Gdip_FontFamilyCreate("Segoe UI")
@@ -11,7 +11,7 @@ DrawStatusBar(pGraphics, width, height) {
 
     ; Status text based on mode
     if (previewMode = "viewing")
-        text := "[Viewing]  a:arrow  n:number  r:rect  c:crop  f:save  p:copy  u:upload  Esc:close"
+        text := "[Viewing]  a:arrow  n:number  r:rect  l:line  c:crop  f:save  p:copy  u:upload  Esc:close"
     else if (previewMode = "crop")
         text := "[Crop]  hjkl/mouse:move  Space/click:set  Enter:apply  Esc:cancel"
     else if (previewMode = "arrow")
@@ -20,6 +20,8 @@ DrawStatusBar(pGraphics, width, height) {
         text := "[Number:" . arrowColorNames[numberColorIndex+1] . "]  hjkl:move  1-0:place  u/i:size  c:color  z:undo  Enter:apply  Esc:cancel"
     else if (previewMode = "rectangle")
         text := "[Rect:" . arrowColorNames[rectColorIndex+1] . "]  hjkl:move  Space:set  u/i:size  c:color  z:undo  Enter:apply  Esc:cancel"
+    else if (previewMode = "line")
+        text := "[Line:" . arrowColorNames[lineColorIndex+1] . "]  hjkl:move  Space:set  Shift:snap  S+Space:multiline  u/i:size  c:color  z:undo  Enter:apply  Esc:cancel"
 
     ; Create string format (centered)
     hFormat := Gdip_StringFormatCreate(0)

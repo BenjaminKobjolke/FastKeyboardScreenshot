@@ -139,6 +139,10 @@ ImageViewPaint(wParam, lParam, msg, hwnd)
 	if (previewMode = "rectangle")
 		DrawRectanglesOverlay(pGraphics, offsetX, offsetY, scaledWidth, scaledHeight)
 
+	; Draw lines overlay if in line mode
+	if (previewMode = "line")
+		DrawLinesOverlay(pGraphics, offsetX, offsetY, scaledWidth, scaledHeight)
+
 	; Draw status bars
 	DrawStatusBar(pGraphics, width, height)
 	DrawTopStatusBar(pGraphics, width)
@@ -166,7 +170,7 @@ ImageViewEraseBkgnd(wParam, lParam, msg, hwnd) {
 
 ; Handle WM_LBUTTONDOWN - mouse click in preview window
 PreviewMouseDown(wParam, lParam, msg, hwnd) {
-	global previewHwnd, previewMode
+	global previewHwnd, previewMode, lineSettingStart
 
 	if (hwnd != previewHwnd)
 		return
@@ -179,6 +183,12 @@ PreviewMouseDown(wParam, lParam, msg, hwnd) {
 		SetArrowPoint()
 	} else if (previewMode = "rectangle") {
 		SetRectanglePoint()
+	} else if (previewMode = "line") {
+		; Shift+click = commit segment and continue drawing (multiline)
+		if (GetKeyState("Shift", "P") && lineSettingStart = 1)
+			CommitLineAndContinue()
+		else
+			SetLinePoint()
 	} else if (previewMode = "crop") {
 		SetCropPoint()
 	} else if (previewMode = "number") {
@@ -196,7 +206,7 @@ PreviewMouseMove(wParam, lParam, msg, hwnd) {
 		return
 
 	; Only track mouse in annotation/crop modes
-	if (previewMode = "arrow" || previewMode = "rectangle" || previewMode = "number" || previewMode = "crop") {
+	if (previewMode = "arrow" || previewMode = "rectangle" || previewMode = "line" || previewMode = "number" || previewMode = "crop") {
 		SetArrowCursorFromMouse()
 		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
 	}
@@ -223,6 +233,9 @@ PreviewMouseWheel(wParam, lParam, msg, hwnd) {
 		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
 	} else if (previewMode = "rectangle") {
 		ChangeRectangleSize(wheelDelta > 0 ? 1 : -1)
+		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
+	} else if (previewMode = "line") {
+		ChangeLineSize(wheelDelta > 0 ? 1 : -1)
 		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
 	}
 }
@@ -301,6 +314,10 @@ ShowImageWindow(tempFile, nW, nH, resizeBy = 1)
 		Gui, ImageView:Show, w%savedWidth% h%savedHeight%, Screenshot Preview
 	else
 		Gui, ImageView:Show, x%savedX% y%savedY% w%savedWidth% h%savedHeight%, Screenshot Preview
+
+	; Move mouse to window center so mouse-driven annotation starts centered
+	WinGetPos, winX, winY, winW, winH, ahk_id %previewHwnd%
+	MouseMove, % winX + winW // 2, % winY + winH // 2, 0
 
 	; Force initial paint
 	DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
@@ -383,6 +400,13 @@ Esc::
 	; If in rectangle mode, just exit to viewing mode (discard rectangles)
 	if (previewMode = "rectangle") {
 		ResetRectangleState()
+		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
+		return
+	}
+
+	; If in line mode, just exit to viewing mode (discard lines)
+	if (previewMode = "line") {
+		ResetLineState()
 		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
 		return
 	}
@@ -470,6 +494,9 @@ c::
 	} else if (previewMode = "rectangle") {
 		CycleRectangleColor()
 		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
+	} else if (previewMode = "line") {
+		CycleLineColor()
+		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
 	}
 return
 
@@ -477,7 +504,7 @@ return
 h::
 Left::
 	global previewMode, arrowMoveStep, previewHwnd
-	if (previewMode = "crop" || previewMode = "arrow" || previewMode = "number" || previewMode = "rectangle") {
+	if (previewMode = "crop" || previewMode = "arrow" || previewMode = "number" || previewMode = "rectangle" || previewMode = "line") {
 		MoveArrowCursor(-arrowMoveStep, 0)
 		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
 	}
@@ -487,17 +514,31 @@ return
 +h::
 +Left::
 	global previewMode, arrowMoveStep, previewHwnd
-	if (previewMode = "crop" || previewMode = "arrow" || previewMode = "number" || previewMode = "rectangle") {
+	if (previewMode = "crop" || previewMode = "arrow" || previewMode = "number" || previewMode = "rectangle" || previewMode = "line") {
 		MoveArrowCursor(-arrowMoveStep * 5, 0)
 		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
 	}
 return
 
-; Movement - right (all modes: move cursor)
+; Enter line mode (viewing) / Movement - right (annotation modes)
 l::
+	global previewMode, arrowMoveStep, previewHwnd, lines, lineSettingStart
+	if (previewMode = "viewing") {
+		previewMode := "line"
+		lineSettingStart := 0
+		lines := []
+		SetArrowCursorFromMouse()
+		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
+	} else if (previewMode = "crop" || previewMode = "arrow" || previewMode = "number" || previewMode = "rectangle" || previewMode = "line") {
+		MoveArrowCursor(arrowMoveStep, 0)
+		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
+	}
+return
+
+; Movement - right (all modes: move cursor)
 Right::
 	global previewMode, arrowMoveStep, previewHwnd
-	if (previewMode = "crop" || previewMode = "arrow" || previewMode = "number" || previewMode = "rectangle") {
+	if (previewMode = "crop" || previewMode = "arrow" || previewMode = "number" || previewMode = "rectangle" || previewMode = "line") {
 		MoveArrowCursor(arrowMoveStep, 0)
 		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
 	}
@@ -507,7 +548,7 @@ return
 +l::
 +Right::
 	global previewMode, arrowMoveStep, previewHwnd
-	if (previewMode = "crop" || previewMode = "arrow" || previewMode = "number" || previewMode = "rectangle") {
+	if (previewMode = "crop" || previewMode = "arrow" || previewMode = "number" || previewMode = "rectangle" || previewMode = "line") {
 		MoveArrowCursor(arrowMoveStep * 5, 0)
 		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
 	}
@@ -517,7 +558,7 @@ return
 k::
 Up::
 	global previewMode, arrowMoveStep, previewHwnd
-	if (previewMode = "crop" || previewMode = "arrow" || previewMode = "number" || previewMode = "rectangle") {
+	if (previewMode = "crop" || previewMode = "arrow" || previewMode = "number" || previewMode = "rectangle" || previewMode = "line") {
 		MoveArrowCursor(0, -arrowMoveStep)
 		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
 	}
@@ -527,7 +568,7 @@ return
 +k::
 +Up::
 	global previewMode, arrowMoveStep, previewHwnd
-	if (previewMode = "crop" || previewMode = "arrow" || previewMode = "number" || previewMode = "rectangle") {
+	if (previewMode = "crop" || previewMode = "arrow" || previewMode = "number" || previewMode = "rectangle" || previewMode = "line") {
 		MoveArrowCursor(0, -arrowMoveStep * 5)
 		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
 	}
@@ -537,7 +578,7 @@ return
 j::
 Down::
 	global previewMode, arrowMoveStep, previewHwnd
-	if (previewMode = "crop" || previewMode = "arrow" || previewMode = "number" || previewMode = "rectangle") {
+	if (previewMode = "crop" || previewMode = "arrow" || previewMode = "number" || previewMode = "rectangle" || previewMode = "line") {
 		MoveArrowCursor(0, arrowMoveStep)
 		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
 	}
@@ -547,15 +588,15 @@ return
 +j::
 +Down::
 	global previewMode, arrowMoveStep, previewHwnd
-	if (previewMode = "crop" || previewMode = "arrow" || previewMode = "number" || previewMode = "rectangle") {
+	if (previewMode = "crop" || previewMode = "arrow" || previewMode = "number" || previewMode = "rectangle" || previewMode = "line") {
 		MoveArrowCursor(0, arrowMoveStep * 5)
 		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
 	}
 return
 
-; Apply (crop, arrows, numbers, or rectangles)
+; Apply (crop, arrows, numbers, rectangles, or lines)
 Enter::
-	global previewMode, previewHwnd, arrowSettingStart, rectSettingStart
+	global previewMode, previewHwnd, arrowSettingStart, rectSettingStart, lineSettingStart
 	if (previewMode = "crop") {
 		ApplyCrop()
 		previewMode := "viewing"
@@ -578,6 +619,13 @@ Enter::
 		ApplyRectangles()
 		previewMode := "viewing"
 		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
+	} else if (previewMode = "line") {
+		; Finish in-progress line first if start point was set
+		if (lineSettingStart = 1)
+			SetLinePoint()
+		ApplyLines()
+		previewMode := "viewing"
+		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
 	}
 return
 
@@ -590,6 +638,9 @@ Space::
 	} else if (previewMode = "rectangle") {
 		SetRectanglePoint()
 		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
+	} else if (previewMode = "line") {
+		SetLinePoint()
+		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
 	} else if (previewMode = "crop") {
 		SetCropPoint()
 		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
@@ -597,6 +648,23 @@ Space::
 		AddNextNumber()
 		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
 	}
+return
+
+; Shift+Space: commit line segment and continue drawing (multiline)
++Space::
+	global previewMode, previewHwnd
+	if (previewMode = "line") {
+		CommitLineAndContinue()
+		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
+	}
+return
+
+; Repaint on Shift press/release so 45° snap preview updates without cursor movement
+~*Shift::
+~*Shift Up::
+	global previewMode, previewHwnd, lineSettingStart
+	if (previewMode = "line" && lineSettingStart = 1)
+		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
 return
 
 ; Increase arrow/number/rectangle size
@@ -611,12 +679,15 @@ i::
 	} else if (previewMode = "rectangle") {
 		ChangeRectangleSize(1)
 		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
+	} else if (previewMode = "line") {
+		ChangeLineSize(1)
+		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
 	}
 return
 
-; Undo last arrow/number/rectangle
+; Undo last arrow/number/rectangle/line
 z::
-	global previewMode, previewHwnd, arrows, numbers, rectangles
+	global previewMode, previewHwnd, arrows, numbers, rectangles, lines
 	if (previewMode = "arrow") {
 		if (arrows.Length() > 0) {
 			arrows.Pop()
@@ -630,6 +701,11 @@ z::
 	} else if (previewMode = "rectangle") {
 		if (rectangles.Length() > 0) {
 			rectangles.Pop()
+			DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
+		}
+	} else if (previewMode = "line") {
+		if (lines.Length() > 0) {
+			lines.Pop()
 			DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
 		}
 	}
@@ -805,6 +881,13 @@ u::
 		return
 	}
 
+	; In line mode, decrease line size
+	if (previewMode = "line") {
+		ChangeLineSize(-1)
+		DllCall("InvalidateRect", "ptr", previewHwnd, "ptr", 0, "int", 1)
+		return
+	}
+
 	; Only work in viewing mode for upload
 	if (previewMode != "viewing")
 		return
@@ -905,6 +988,8 @@ ShowPreviewHelp:
 	Gui, PreviewHelp:Add, Text, x75 yp cE0E0E0, Number mode
 	Gui, PreviewHelp:Add, Text, x15 y+5 c808080, r
 	Gui, PreviewHelp:Add, Text, x75 yp cE0E0E0, Rect mode
+	Gui, PreviewHelp:Add, Text, x15 y+5 c808080, l
+	Gui, PreviewHelp:Add, Text, x75 yp cE0E0E0, Line mode
 	Gui, PreviewHelp:Add, Text, x15 y+5 c808080, Esc
 	Gui, PreviewHelp:Add, Text, x75 yp cE0E0E0, Close
 
@@ -977,6 +1062,29 @@ ShowPreviewHelp:
 	Gui, PreviewHelp:Add, Text, x560 yp cE0E0E0, Apply
 	Gui, PreviewHelp:Add, Text, x510 y+5 c808080, Esc
 	Gui, PreviewHelp:Add, Text, x560 yp cE0E0E0, Cancel
+
+	; Column 6: LINE MODE
+	Gui, PreviewHelp:Font, s11 cFFFFFF Bold, Segoe UI
+	Gui, PreviewHelp:Add, Text, x630 y15, LINE
+	Gui, PreviewHelp:Font, s10 Normal, Segoe UI
+	Gui, PreviewHelp:Add, Text, x630 y+10 c808080, hjkl
+	Gui, PreviewHelp:Add, Text, x680 yp cE0E0E0, Move
+	Gui, PreviewHelp:Add, Text, x630 y+5 c808080, Space
+	Gui, PreviewHelp:Add, Text, x680 yp cE0E0E0, Set point
+	Gui, PreviewHelp:Add, Text, x630 y+5 c808080, Shift
+	Gui, PreviewHelp:Add, Text, x680 yp cE0E0E0, Snap 45°
+	Gui, PreviewHelp:Add, Text, x630 y+5 c808080, S+Space
+	Gui, PreviewHelp:Add, Text, x680 yp cE0E0E0, Multiline
+	Gui, PreviewHelp:Add, Text, x630 y+5 c808080, c
+	Gui, PreviewHelp:Add, Text, x680 yp cE0E0E0, Color
+	Gui, PreviewHelp:Add, Text, x630 y+5 c808080, i / u
+	Gui, PreviewHelp:Add, Text, x680 yp cE0E0E0, Size
+	Gui, PreviewHelp:Add, Text, x630 y+5 c808080, z
+	Gui, PreviewHelp:Add, Text, x680 yp cE0E0E0, Undo
+	Gui, PreviewHelp:Add, Text, x630 y+5 c808080, Enter
+	Gui, PreviewHelp:Add, Text, x680 yp cE0E0E0, Apply
+	Gui, PreviewHelp:Add, Text, x630 y+5 c808080, Esc
+	Gui, PreviewHelp:Add, Text, x680 yp cE0E0E0, Cancel
 
 	; Footer
 	Gui, PreviewHelp:Font, s9 c606060 Normal, Segoe UI

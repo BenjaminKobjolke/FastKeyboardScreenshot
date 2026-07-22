@@ -1,7 +1,7 @@
 # Preview Window Documentation
 
 ## Overview
-The preview window displays captured screenshots and provides editing capabilities including cropping, arrow annotations, numbered callouts, and rectangle highlights.
+The preview window displays captured screenshots and provides editing capabilities including cropping, arrow annotations, numbered callouts, rectangle highlights, and straight lines.
 
 ## Files
 | File | Purpose |
@@ -11,6 +11,7 @@ The preview window displays captured screenshots and provides editing capabiliti
 | `lib/arrow.ahk` | Arrow mode functions (drawing, cursor, apply) |
 | `lib/number.ahk` | Number mode functions (circle annotations) |
 | `lib/rectangle.ahk` | Rectangle mode functions (outline drawing) |
+| `lib/line.ahk` | Line mode functions (straight line drawing) |
 | `lib/status_bar.ahk` | Status bar rendering for all modes |
 | `lib/image.ahk` | Image saving functions (SaveGdipBitmap, etc.) |
 
@@ -20,6 +21,7 @@ The preview window displays captured screenshots and provides editing capabiliti
 - Display screenshot with aspect ratio preservation
 - Dark theme (background: `#1e1e1e`)
 - Resizable window (position/size saved to settings.ini)
+- Mouse is moved to window center when the preview opens
 - Double-buffered rendering (flicker-free)
 - Press `F1` for help overlay
 
@@ -71,6 +73,20 @@ The preview window displays captured screenshots and provides editing capabiliti
 - Press `Esc` to cancel and discard rectangles
 - Settings saved: `rectColorIndex`, `rectSize`
 
+### Line Mode
+- Press `l` to enter line mode
+- Cursor starts at mouse position
+- Move cursor with `hjkl` or arrow keys (Shift for 5x speed) or mouse
+- Press `Space` or left-click to set start point, move, `Space`/click again for end point
+- Hold `Shift` while drawing to snap the line to 45° angle increments (horizontal/vertical/diagonal)
+- Press `Shift+Space` or Shift+click to commit the segment and continue drawing from its endpoint (multiline)
+- Press `c` to cycle colors (red/blue/green/yellow/black)
+- Press `i`/`u` to increase/decrease line thickness
+- Press `z` to undo last line
+- Press `Enter` to apply lines to image (completes in-progress line first)
+- Press `Esc` to cancel and discard lines
+- Settings saved: `lineColorIndex`, `lineSize`
+
 ### Hotkeys (when preview window is active)
 | Key | Mode | Action |
 |-----|------|--------|
@@ -83,26 +99,30 @@ The preview window displays captured screenshots and provides editing capabiliti
 | `a` | Viewing | Enter arrow mode |
 | `n` | Viewing | Enter number mode |
 | `r` | Viewing | Enter rectangle mode |
-| `hjkl` / Arrows | Crop/Arrow/Number/Rect | Move cursor |
-| `Shift` + above | Crop/Arrow/Number/Rect | Move cursor faster (5x) |
-| Mouse move | Crop/Arrow/Number/Rect | Move cursor |
-| `Space` / Left-click | Crop/Arrow/Rect | Set corner/point |
+| `l` | Viewing | Enter line mode |
+| `hjkl` / Arrows | Crop/Arrow/Number/Rect/Line | Move cursor |
+| `Shift` + above | Crop/Arrow/Number/Rect/Line | Move cursor faster (5x) |
+| Mouse move | Crop/Arrow/Number/Rect/Line | Move cursor |
+| `Space` / Left-click | Crop/Arrow/Rect/Line | Set corner/point |
+| `Shift` (hold) | Line | Snap line to 45° angles |
+| `Shift+Space` / Shift+click | Line | Commit segment, continue drawing (multiline) |
 | Left-click | Number | Place next sequential number |
 | `1-9`, `0` | Number | Place number 1-10 |
-| `c` | Arrow/Number/Rect | Cycle color |
-| `i` | Arrow/Number/Rect | Increase size |
-| `u` | Arrow/Number/Rect | Decrease size |
-| `z` | Arrow/Number/Rect | Undo last annotation |
-| `Enter` | Crop/Arrow/Number/Rect | Apply changes |
+| `c` | Arrow/Number/Rect/Line | Cycle color |
+| `i` | Arrow/Number/Rect/Line | Increase size |
+| `u` | Arrow/Number/Rect/Line | Decrease size |
+| `z` | Arrow/Number/Rect/Line | Undo last annotation |
+| `Enter` | Crop/Arrow/Number/Rect/Line | Apply changes |
 | `Esc` | Any | Cancel mode / Close window |
 
 ## Status Bar
 Bottom of window shows current mode and available actions:
-- Viewing: `[Viewing]  a:arrow  n:number  r:rect  c:crop  f:save  p:copy  u:upload  Esc:close`
+- Viewing: `[Viewing]  a:arrow  n:number  r:rect  l:line  c:crop  f:save  p:copy  u:upload  Esc:close`
 - Crop: `[Crop]  hjkl/mouse:move  Space/click:set  Enter:apply  Esc:cancel`
 - Arrow: `[Arrow:Red]  hjkl:move  Space:set  u/i:size  c:color  z:undo  Enter:apply  Esc:cancel`
 - Number: `[Number:Red]  hjkl:move  1-0:place  u/i:size  c:color  z:undo  Enter:apply  Esc:cancel`
 - Rectangle: `[Rect:Red]  hjkl:move  Space:set  u/i:size  c:color  z:undo  Enter:apply  Esc:cancel`
+- Line: `[Line:Red]  hjkl:move  Space:set  Shift:snap  S+Space:multiline  u/i:size  c:color  z:undo  Enter:apply  Esc:cancel`
 
 ## Global Variables
 ```ahk
@@ -116,7 +136,7 @@ previewTempFile := ""         ; Temp file path
 previewSavedFilePath := ""    ; Saved file path for overwrite
 
 ; Mode state
-previewMode := "viewing"      ; "viewing", "crop", "arrow", "number", or "rectangle"
+previewMode := "viewing"      ; "viewing", "crop", "arrow", "number", "rectangle", or "line"
 
 ; Crop mode state
 cropSettingStart := 0         ; 0 = setting first corner, 1 = setting second corner
@@ -151,6 +171,14 @@ rectColorIndex := 0           ; Saved to settings.ini (shares arrowColors palett
 rectSettingStart := 0         ; 0 = not setting, 1 = setting first corner
 rectStartX := 0
 rectStartY := 0
+
+; Line mode state
+lines := []                   ; Array of {x1, y1, x2, y2, color, size}
+lineSize := 3                 ; Saved to settings.ini
+lineColorIndex := 0           ; Saved to settings.ini (shares arrowColors palette)
+lineSettingStart := 0         ; 0 = not setting, 1 = setting start point
+lineStartX := 0
+lineStartY := 0
 ```
 
 ## Key Functions
@@ -203,6 +231,18 @@ rectStartY := 0
 - `CycleRectangleColor()` - Cycles color and saves to settings
 - `ChangeRectangleSize(delta)` - Changes size and saves to settings
 
+### line.ahk
+- `DrawStraightLine(pGraphics, x1, y1, x2, y2, color, size)` - Draws straight line
+- `SnapLineEndpoint(x1, y1, ByRef x2, ByRef y2)` - Snaps endpoint to nearest 45° angle from start
+- `CommitLineAndContinue()` - Commits current segment, continues drawing from its endpoint (multiline)
+- `DrawLinesOverlay(pGraphics, offsetX, offsetY, scaledWidth, scaledHeight)` - Draws all lines + cursor
+- `DrawLineCursor(pGraphics, x, y, size)` - Draws crosshair cursor with size indication
+- `ApplyLines()` - Permanently applies lines to bitmap
+- `ResetLineState()` - Resets to viewing mode
+- `SetLinePoint()` - Sets start or end point
+- `CycleLineColor()` - Cycles color and saves to settings
+- `ChangeLineSize(delta)` - Changes size and saves to settings
+
 ### status_bar.ahk
 - `DrawStatusBar(pGraphics, width, height)` - Draws mode-specific status bar
 - `DrawTopStatusBar(pGraphics, width)` - Draws image dimensions
@@ -228,6 +268,10 @@ ColorIndex=0    ; 0=Red, 1=Blue, 2=Green, 3=Yellow, 4=Black
 Size=24         ; Circle diameter (12-60)
 
 [Rectangle]
+ColorIndex=0    ; 0=Red, 1=Blue, 2=Green, 3=Yellow, 4=Black
+Size=3          ; Line thickness (1-20)
+
+[Line]
 ColorIndex=0    ; 0=Red, 1=Blue, 2=Green, 3=Yellow, 4=Black
 Size=3          ; Line thickness (1-20)
 ```

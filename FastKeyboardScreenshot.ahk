@@ -14,6 +14,7 @@
 #Include %A_ScriptDir%\lib\arrow.ahk
 #Include %A_ScriptDir%\lib\number.ahk
 #Include %A_ScriptDir%\lib\rectangle.ahk
+#Include %A_ScriptDir%\lib\line.ahk
 #Include %A_ScriptDir%\lib\status_bar.ahk
 #Include %A_ScriptDir%\lib\FTP_Upload.ahk
 #Include %A_ScriptDir%\lib\SingleInstance.ahk
@@ -82,7 +83,7 @@ previewTempFile := ""
 previewSavedFilePath := ""  ; Track saved file for overwrite
 
 ; Global variables for crop mode
-previewMode := "viewing"  ; "viewing", "crop", "arrow", "number", or "rectangle"
+previewMode := "viewing"  ; "viewing", "crop", "arrow", "number", "rectangle", or "line"
 cropSettingStart := 0  ; 0 = setting first corner, 1 = setting second corner
 cropStartX := 0
 cropStartY := 0
@@ -115,6 +116,14 @@ rectColorIndex := 0  ; Color index (shares arrowColors palette)
 rectSettingStart := 0  ; 0 = not setting, 1 = setting first corner
 rectStartX := 0
 rectStartY := 0
+
+; Global variables for line mode
+lines := []  ; Array of drawn lines
+lineSize := 3  ; Line thickness (1-20)
+lineColorIndex := 0  ; Color index (shares arrowColors palette)
+lineSettingStart := 0  ; 0 = not setting, 1 = setting start point
+lineStartX := 0
+lineStartY := 0
 
 ; Global variables for text preview window
 textPreviewHwnd := 0
@@ -172,6 +181,14 @@ if (rectColorIndex >= arrowColors.Length())
 IniRead, rectSize, %settingsFile%, Rectangle, Size, 3
 if (rectSize < 1 || rectSize > 20)
     rectSize := 3
+
+; Load line preferences from settings
+IniRead, lineColorIndex, %settingsFile%, Line, ColorIndex, 0
+if (lineColorIndex >= arrowColors.Length())
+    lineColorIndex := 0
+IniRead, lineSize, %settingsFile%, Line, Size, 3
+if (lineSize < 1 || lineSize > 20)
+    lineSize := 3
 
 ; Set tray icon
 if (!a_iscompiled) {
