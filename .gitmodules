@@ -3,4 +3,4 @@
 	url = https://github.com/tariqporter/Gdip.git
 [submodule "github_modules/RapidOCR-AutoHotkey"]
 	path = github_modules/RapidOCR-AutoHotkey
-	url = https://github.com/telppa/RapidOCR-AutoHotkey.git
+	url = https://github.com/BenjaminKobjolke/RapidOCR-AutoHotkey.git
