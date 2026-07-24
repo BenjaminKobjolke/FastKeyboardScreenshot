@@ -81,6 +81,7 @@ previewPBitmap := 0
 previewHwnd := 0
 previewTempFile := ""
 previewSavedFilePath := ""  ; Track saved file for overwrite
+previewOriginalPath := ""  ; Original file path when opened via command-line arg
 
 ; Global variables for crop mode
 previewMode := "viewing"  ; "viewing", "crop", "arrow", "number", "rectangle", or "line"
@@ -200,6 +201,23 @@ Menu, tray, NoStandard
 Menu, tray, add  ; Creates a separator line.
 Menu, tray, add, Reload
 Menu, tray, add, Exit
+
+; Open an image passed on the command line (e.g. FastKeyboardScreenshot.exe "C:\pic.png")
+argPath := A_Args.Length() ? A_Args[1] : ""
+if (argPath != "" && FileExist(argPath)) {
+	SplitPath, argPath, , , argExt
+	FormatTime, argTs, , yyyyMMddHHmmss
+	argTmp := A_Temp . "\FastKeyboardScreenshot_open_" . argTs . "." . argExt
+	FileCopy, %argPath%, %argTmp%, 1
+	argBmp := Gdip_CreateBitmapFromFile(argTmp)
+	if (argBmp) {
+		argW := Gdip_GetImageWidth(argBmp)
+		argH := Gdip_GetImageHeight(argBmp)
+		Gdip_DisposeImage(argBmp)
+		ShowImageWindow(argTmp, argW, argH, 1)
+		previewOriginalPath := argPath
+	}
+}
 
 return
 

@@ -3,6 +3,13 @@
 ## Overview
 The preview window displays captured screenshots and provides editing capabilities including cropping, arrow annotations, numbered callouts, rectangle highlights, and straight lines.
 
+### Opening a file directly
+Launch the tool with an image path as the first argument to open it straight in the preview window, skipping capture:
+```
+FastKeyboardScreenshot.exe "C:\path\to\image.png"
+```
+The file is copied to a temp file before use, so the original is never modified or deleted.
+
 ## Files
 | File | Purpose |
 |------|---------|

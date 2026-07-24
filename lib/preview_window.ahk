@@ -244,6 +244,7 @@ ShowImageWindow(tempFile, nW, nH, resizeBy = 1)
 {
 	global previewImagePath, previewImageWidth, previewImageHeight
 	global previewPBitmap, previewHwnd, previewTempFile, settingsFile
+	global previewOriginalPath
 
 	; Close existing preview window if already open
 	if (previewHwnd) {
@@ -276,6 +277,9 @@ ShowImageWindow(tempFile, nW, nH, resizeBy = 1)
 
 	; Reset crop state when opening new preview
 	ResetCropState()
+
+	; Reset original-file tracking; set by caller after this call if opened via arg
+	previewOriginalPath := ""
 
 	; Reset number counter for new preview
 	global nextNumber
@@ -338,7 +342,7 @@ return
 
 ; GUI close handler for when user clicks X button
 ImageViewGuiClose:
-	global previewPBitmap, previewHwnd, previewTempFile, previewSavedFilePath
+	global previewPBitmap, previewHwnd, previewTempFile, previewSavedFilePath, previewOriginalPath
 
 	; Save window position and size
 	WinGetPos, winX, winY, winWidth, winHeight, Screenshot Preview
@@ -367,6 +371,7 @@ ImageViewGuiClose:
 	previewHwnd := 0
 	previewTempFile := ""
 	previewSavedFilePath := ""
+	previewOriginalPath := ""
 
 	Gui, ImageView:Destroy
 return
@@ -374,7 +379,7 @@ return
 ; Hotkeys for preview window
 #If WinActive("Screenshot Preview")
 Esc::
-	global previewPBitmap, previewHwnd, previewTempFile, previewMode, previewSavedFilePath
+	global previewPBitmap, previewHwnd, previewTempFile, previewMode, previewSavedFilePath, previewOriginalPath
 
 	; If in crop mode, just exit to viewing mode
 	if (previewMode = "crop") {
@@ -438,6 +443,7 @@ Esc::
 	previewHwnd := 0
 	previewTempFile := ""
 	previewSavedFilePath := ""
+	previewOriginalPath := ""
 
 	Gui, ImageView:Destroy
 return
@@ -794,7 +800,7 @@ return
 
 ; Hotkey to save the screenshot from preview window (viewing mode only)
 f::
-	global previewPBitmap, screenshotFolder, previewSavedFilePath, previewMode
+	global previewPBitmap, screenshotFolder, previewSavedFilePath, previewMode, previewOriginalPath
 
 	; Only work in viewing mode
 	if (previewMode != "viewing")
@@ -811,6 +817,16 @@ f::
 	; If already saved, overwrite same file
 	if (previewSavedFilePath && previewSavedFilePath != "") {
 		fullFilePath := previewSavedFilePath
+	} else if (previewOriginalPath && previewOriginalPath != "") {
+		; Opened from a command-line file: offer to overwrite the original
+		MsgBox, 0x24, Overwrite original?, Overwrite the original file?`n`n%previewOriginalPath%
+		IfMsgBox Yes
+		{
+			fullFilePath := previewOriginalPath
+			previewSavedFilePath := previewOriginalPath  ; further saves overwrite silently
+		}
+		else
+			return
 	} else {
 		; First save: create new file with timestamp
 		saveFolder := screenshotFolder
