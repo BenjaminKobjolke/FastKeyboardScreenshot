@@ -86,7 +86,7 @@ The file is copied to a temp file before use, so the original is never modified 
 - Move cursor with `hjkl` or arrow keys (Shift for 5x speed) or mouse
 - Press `Space` or left-click to set start point, move, `Space`/click again for end point
 - Hold `Shift` while drawing to snap the line to 45° angle increments (horizontal/vertical/diagonal)
-- Press `Shift+Space` or Shift+click to commit the segment and continue drawing from its endpoint (multiline)
+- Press `Ctrl+Space` or Ctrl+click to commit the segment and continue drawing from its endpoint (multiline)
 - Press `c` to cycle colors (red/blue/green/yellow/black)
 - Press `i`/`u` to increase/decrease line thickness
 - Press `z` to undo last line
@@ -112,7 +112,7 @@ The file is copied to a temp file before use, so the original is never modified 
 | Mouse move | Crop/Arrow/Number/Rect/Line | Move cursor |
 | `Space` / Left-click | Crop/Arrow/Rect/Line | Set corner/point |
 | `Shift` (hold) | Line | Snap line to 45° angles |
-| `Shift+Space` / Shift+click | Line | Commit segment, continue drawing (multiline) |
+| `Ctrl+Space` / Ctrl+click | Line | Commit segment, continue drawing (multiline) |
 | Left-click | Number | Place next sequential number |
 | `1-9`, `0` | Number | Place number 1-10 |
 | `c` | Arrow/Number/Rect/Line | Cycle color |
@@ -129,7 +129,7 @@ Bottom of window shows current mode and available actions:
 - Arrow: `[Arrow:Red]  hjkl:move  Space:set  u/i:size  c:color  z:undo  Enter:apply  Esc:cancel`
 - Number: `[Number:Red]  hjkl:move  1-0:place  u/i:size  c:color  z:undo  Enter:apply  Esc:cancel`
 - Rectangle: `[Rect:Red]  hjkl:move  Space:set  u/i:size  c:color  z:undo  Enter:apply  Esc:cancel`
-- Line: `[Line:Red]  hjkl:move  Space:set  Shift:snap  S+Space:multiline  u/i:size  c:color  z:undo  Enter:apply  Esc:cancel`
+- Line: `[Line:Red]  hjkl:move  Space:set  Shift:snap  C+Space:multiline  u/i:size  c:color  z:undo  Enter:apply  Esc:cancel`
 
 ## Global Variables
 ```ahk

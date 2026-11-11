@@ -184,8 +184,8 @@ PreviewMouseDown(wParam, lParam, msg, hwnd) {
 	} else if (previewMode = "rectangle") {
 		SetRectanglePoint()
 	} else if (previewMode = "line") {
-		; Shift+click = commit segment and continue drawing (multiline)
-		if (GetKeyState("Shift", "P") && lineSettingStart = 1)
+		; Ctrl+click = commit segment and continue drawing (multiline); Shift only snaps
+		if (GetKeyState("Ctrl", "P") && lineSettingStart = 1)
 			CommitLineAndContinue()
 		else
 			SetLinePoint()
@@ -636,7 +636,9 @@ Enter::
 return
 
 ; Set arrow/rectangle/crop point or place number (Space)
+; Shift+Space does the same, so a Shift-snapped line can be ended
 Space::
++Space::
 	global previewMode, previewHwnd
 	if (previewMode = "arrow") {
 		SetArrowPoint()
@@ -656,8 +658,9 @@ Space::
 	}
 return
 
-; Shift+Space: commit line segment and continue drawing (multiline)
-+Space::
+; Ctrl+Space: commit line segment and continue drawing (multiline); add Shift to snap
+^Space::
+^+Space::
 	global previewMode, previewHwnd
 	if (previewMode = "line") {
 		CommitLineAndContinue()
@@ -1089,7 +1092,7 @@ ShowPreviewHelp:
 	Gui, PreviewHelp:Add, Text, x680 yp cE0E0E0, Set point
 	Gui, PreviewHelp:Add, Text, x630 y+5 c808080, Shift
 	Gui, PreviewHelp:Add, Text, x680 yp cE0E0E0, Snap 45°
-	Gui, PreviewHelp:Add, Text, x630 y+5 c808080, S+Space
+	Gui, PreviewHelp:Add, Text, x630 y+5 c808080, C+Space
 	Gui, PreviewHelp:Add, Text, x680 yp cE0E0E0, Multiline
 	Gui, PreviewHelp:Add, Text, x630 y+5 c808080, c
 	Gui, PreviewHelp:Add, Text, x680 yp cE0E0E0, Color

@@ -129,7 +129,7 @@ Draw straight lines on your screenshot.
 - Use hjkl or arrow keys to move cursor (Shift for faster), or the mouse
 - Press Space (or click) to set start point, then Space/click again to set end point
 - Hold Shift while drawing to snap the line to 45° angles (horizontal/vertical/diagonal)
-- Press Shift+Space (or Shift+click) to commit the segment and keep drawing from its endpoint (multiline)
+- Press Ctrl+Space (or Ctrl+click) to commit the segment and keep drawing from its endpoint (multiline)
 - Press c to cycle color (red/blue/green/yellow/black)
 - Press i/u to increase/decrease line thickness
 - Press z to undo the last line
