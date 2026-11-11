@@ -5,3 +5,11 @@
 /*_settings.ini
 claude-plans
 .claude
+
+# Claude working files
+PLAN.md
+HANDOFF.md
+/PLAN_*.md
+
+# External ticket tool working files
+/tickets/
