@@ -8,7 +8,9 @@ if !FileExist(settingsFile)
 
 #NoEnv 
 SendMode Input
-#SingleInstance force
+; Off: the built-in "force" only asks "keep waiting?" when the old instance is hung.
+; CheckSingleInstance() closes old instances instead and force-kills hung ones.
+#SingleInstance Off
 SetTitleMatchMode, 2
 SetWorkingDir %A_ScriptDir%
 ListLines Off

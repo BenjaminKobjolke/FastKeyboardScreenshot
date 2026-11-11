@@ -19,20 +19,8 @@
 #Include %A_ScriptDir%\lib\FTP_Upload.ahk
 #Include %A_ScriptDir%\lib\SingleInstance.ahk
 
-; Class for single instance management
-class FastKeyboardScreenshotApp {
-    IsActive() {
-        return 1
-    }
-    Quit() {
-        global ActiveObject
-        try ObjRegisterActive(ActiveObject, "")
-        ExitApp
-    }
-}
-
-; Ensure single instance - quit if another instance is already running
-CheckSingleInstance("{B8F4C2E1-7A3D-4F9E-8B5C-1D2E3F4A5B6C}", "FastKeyboardScreenshotApp")
+; Ensure single instance - close any other running instance
+CheckSingleInstance()
 
 ; Initialize GDI+ once at startup (keep running for entire script lifetime)
 pGdipToken := Gdip_Startup()
